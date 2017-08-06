@@ -1,0 +1,52 @@
+//------------------------------------------------------------------------
+// 简称: TestMtDMI
+// 名称: 
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出:
+//------------------------------------------------------------------------
+
+Params
+        Numeric TimeFrame(1440);        // 目标时间周期参数，参数说明参见MtBar
+        Numeric BarsBack(1);                 // 目标时间周期BAR偏移参数，说明见MtBar函数
+        Numeric Length(20);                        
+        Numeric Offset(2);
+        Numeric Lots(1);
+        
+Vars
+        NumericSeries DMIPlus;
+        NumericSeries DMIMinus;
+        NumericSeries ADX;
+        NumericSeries PreBar;
+
+        Numeric DPlus;
+        Numeric DMinus;
+        Numeric tADX;
+
+Begin
+        PreBar = MtDMI(TimeFrame,BarsBack,Length,DPLus,DMinus,tADX);
+        DMIPlus = DPlus;
+        DMIMinus = DMinus;
+        ADX = tADX;
+
+        PlotNumeric( "DMI+" ,DMIPlus);
+        PlotNumeric( "DMI-" ,DMIMinus);
+        PlotNumeric( "ADX" ,ADX);
+        
+        If ( MarketPosition != 1 and DMIPlus>DMIMinus and DMIPlus[PreBar]<DMIMinus[PreBar])
+        {
+                Buy(Lots,Open);
+        }
+        If ( MarketPosition !=-1 and DMIPlus<DMIMinus and DMIPlus[PreBar]>DMIMinus[PreBar])
+        {
+                SellShort(Lots,Open);
+        }
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 16:46:11
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

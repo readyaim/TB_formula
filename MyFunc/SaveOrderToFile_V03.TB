@@ -1,0 +1,51 @@
+//------------------------------------------------------------------------
+// 简称: SaveOrderToFile
+// 名称: 按格式写入快期交易条件文本
+// 类别: 用户函数
+// 类型: 内建函数
+// 输出: 数值型
+// 版本: V03
+//------------------------------------------------------------------------
+
+Params
+	String Operation("write");		//"write", "clear"
+	String LogPath("C:\\test.txt");
+	String TradeProduct("");
+	Numeric TradeLots(0); 		//手数
+	Numeric TradePrice(0); 		//交易价格
+	Numeric TradeCondPrice(0); 	//条件价格
+	String TradeType("bk"); 		//bk,bp,bpj,sk,sp,spj
+	String TradeOperator("xy"); 	//dy,xy
+	Numeric PriceDiff(0);
+Vars
+	
+Begin	
+	//FileAppend("C:\\Formula.log",Symbol+","+Text(TradeLots)+","+Text(TradePrice)+","+Text(TradeCondPrice)+","+TradeType+","+TradeOperator); 
+	//SetTBProfileString2File(LogPath,Symbol,"Close",Text(Close)); 
+	If (Operation=="write" )
+	{
+		SetTBProfileString2File(LogPath,TradeProduct,"Lots",Text(TradeLots)); 
+		SetTBProfileString2File(LogPath,TradeProduct,"Price",Text(TradePrice)); 
+		SetTBProfileString2File(LogPath,TradeProduct,"Cond",Text(TradeCondPrice)); 
+		SetTBProfileString2File(LogPath,TradeProduct,"TradeType",TradeType); 
+		SetTBProfileString2File(LogPath,TradeProduct,"Operator",TradeOperator); 
+		SetTBProfileString2File(LogPath,TradeProduct,"Diff",Text(PriceDiff)); 
+	}
+	Else If (Operation=="clear")
+	{
+		SetTBProfileString2File(LogPath,TradeProduct,"Lots",""); 
+		SetTBProfileString2File(LogPath,TradeProduct,"Price",""); 
+		SetTBProfileString2File(LogPath,TradeProduct,"Cond",""); 
+		SetTBProfileString2File(LogPath,TradeProduct,"TradeType",""); 
+		SetTBProfileString2File(LogPath,TradeProduct,"Operator",""); 
+		SetTBProfileString2File(LogPath,TradeProduct,"Diff",""); 
+	}
+	Return 1;
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2010.12.08
+// 版权所有	TradeBlazer Software 2003－2010
+// 更改声明	readyaiming保留对TradeBlazer平
+//			台每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

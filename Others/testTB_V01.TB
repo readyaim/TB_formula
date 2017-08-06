@@ -1,0 +1,68 @@
+//------------------------------------------------------------------------
+// 简称: PlumTB
+// 名称: Multi-Period Turtle trading system
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出: V28-15
+//------------------------------------------------------------------------
+//Change List:
+//V1: based on PlumTB V16_tmp2
+//------------------------------------------------------------------------
+Params
+ Numeric K(2);
+ Numeric Length(15);
+
+ Vars
+
+         NumericSeries StdValue;
+         NumericSeries AMA;
+         Numeric MyEntryPrice;
+         Numeric MyExitPrice;        
+ Begin
+         StdValue = StandardDev(Close,Length);
+         AMA=Average(Close,Length);
+         PlotNumeric("AMA", AMA);
+
+         If(MarketPosition!=1 && High-Close[Length]>= StdValue[1]*K && High >= AMA[1])
+         {
+                 MyEntryPrice = Max(Close[Length] + StdValue[1]*K, AMA[1]);
+                 If(Open > MyEntryPrice)
+                         MyEntryPrice = Open;
+                         Buy(0,MyEntryPrice);
+         }
+
+         If(MarketPosition!=-1 && Low-Close[Length]<=-1*StdValue[1]*K &&  Low <= AMA[1])
+         {
+                 MyEntryPrice = Min(Close[Length] - StdValue[1] * K, AMA[1]);
+                 If(Open < MyEntryPrice)
+                         MyEntryPrice = Open;
+                         
+                 SellShort(0,MyEntryPrice);
+         }
+
+         If(MarketPosition==1 &&  Low <=AMA[1])
+         {
+                 MyExitPrice = AMA[1];
+                 If(Open < MyExitPrice)
+                         MyExitPrice = Open;
+                 
+                 Sell(0,MyExitPrice);
+
+         }
+
+         If(MarketPosition==-1 && High >= AMA[1])
+         {
+                 MyExitPrice = AMA[1];
+                 If(Open > MyEntryPrice)
+                         MyEntryPrice = Open;
+
+                 BuyToCover(0,MyEntryPrice);
+         }
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 10:38:04
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

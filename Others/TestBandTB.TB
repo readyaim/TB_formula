@@ -1,0 +1,106 @@
+/* *******************************************************************************************
+1、行情从UpperLine和LowerLine之间开始进入
+2、大于等于UpperLine开空仓，小于等于LowerLine开多仓
+3、从开仓点继续偏离StopInterval止损(意味着最多亏StopInterval)
+4、止损一次之后不再开仓
+5、下午14:55收盘前平仓
+6、运用在TICK图上
+******************************************************************************************** */
+Params
+       Numeric   upperLine(100);
+       Numeric   lowerLine(100);
+       Numeric   StopInterval(150);
+
+       Numeric    firstLots(4);    // 手数(仅为正数)
+       Numeric    today(26);     // 日期(5月22日，则填入22)
+
+Vars
+       Numeric   tem;
+
+       Numeric   needPosition;   // 当前需要建立的头寸（正数为多头，负数为空头，零为全部平光）
+       Numeric   needPrice;    // 建立头寸时下单的价格
+       NumericSeries  wantStopLong;   // 多头止损的位置
+       NumericSeries  wantStopShort;   // 空头止损的位置
+
+Begin
+       if(currentBar == 0)
+       {
+            // 初始化序列变量
+            wantStopLong = -1;
+            wantStopShort = -1;
+       }Else
+       {
+            wantStopLong = wantStopLong[1];  
+            wantStopShort = wantStopShort[1];  
+       }
+       if(day != today)
+       {
+            // 过滤非指定日期的BAR
+            return ;
+       }
+
+       // 计算多、空头止损的位置
+       wantStopLong = lowerLine - stopInterval;  
+       wantStopShort = upperLine + stopInterval;
+
+
+       // 把计算好的值输出来看看(这是调试的重要技巧！！！！！)
+       Commentary("wantStopLong:"+Text(wantStopLong));
+       Commentary("wantStopShort:"+Text(wantStopShort));
+       tem = 0;
+       if(NumLosTrades == 0) // 当日从来没有止损过，开始准备计算。开平仓的方法都包装在OpenCoverFor2Lines函数中
+       {
+            // OpenCoverFor2Lines函数包装了开平仓算法，其用意如下：
+            // 1、返回值为零表示不做任何头寸操作，非零表示要操作
+            // 2、返回值为非零时，needPosition写入了当前要建立的头寸大小和方向，needPrice写入了以什么价格去建立该头寸
+            tem = OpenCoverFor2Lines(MarketPosition(),firstLots,upperLine,lowerLine,wantStopShort,wantStopLong,needPosition,needPrice);
+       }
+
+       Commentary("needPosition:"+Text(needPosition));
+       Commentary("needPrice:"+Text(needPrice));
+
+       if(tem == 0)
+       {
+            // 不操作任何东西，返回！
+            return ;
+       }
+       if(MarketPosition == 0)
+       {
+            if(needPosition > 0)
+            {
+                 // 当前无仓，开始建立多头
+                 buy(abs(needPosition),needPrice);
+            }Else
+            {
+                 // 当前无仓，开始建立空头
+                 SellShort(abs(needPosition),needPrice);
+            }
+            return ;
+       }
+       if(MarketPosition > 0)
+       {
+            if(needPosition < 0)
+            {
+                 // 当前多头，要求反转为空头
+                 SellShort(abs(needPosition),needPrice);
+            }Else
+            {
+                 // 当前多头，要求平仓
+                 Sell(0,needPrice);
+            }
+        return ;
+       }
+       if(MarketPosition < 0)
+       {
+            if(needPosition > 0)
+            {
+                 // 当前空头，要求反转为多头
+                 buy(abs(needPosition),needPrice);
+            }Else
+            {
+                 // 当前空头，要求平仓
+                 BuyToCover(0,needPrice);
+            }
+       }
+       return 0;
+End

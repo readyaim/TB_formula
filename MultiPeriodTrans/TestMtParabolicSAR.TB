@@ -1,0 +1,32 @@
+//------------------------------------------------------------------------
+// 简称: TestMtParabolicSAR
+// 名称: 
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出:
+//------------------------------------------------------------------------
+
+Params 
+
+Vars        
+        Numeric oParCl;
+        Numeric oParOp;
+        Numeric oPosition;
+        Numeric oTransition;
+          
+begin 
+        MtParabolicSAR(5, 1, 0.02, 0.2, oParCl, oParOp, oPosition, oTransition); 
+         
+        Commentary("oParCl:" + Text(oParCl));
+        Commentary("oParOp:" + Text(oParOp)); 
+        Commentary("oPosition:" + Text(oPosition));
+        Commentary("oTransition:" + Text(oTransition));
+End                      
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 17:59:14
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

@@ -1,0 +1,107 @@
+//------------------------------------------------------------------------
+// 简称: TestMultipleMtMACD
+// 名称: 
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出:
+//------------------------------------------------------------------------
+
+Params
+        Numeric FastLength(12);
+        Numeric SlowLength(26);
+        Numeric MACDLength(9);
+Vars
+        Numeric PreBar60;
+        Numeric ooMACDValue60;
+        Numeric ooAvgMACD60;
+        NumericSeries MACDVAlue60;
+        NumericSeries AvgMACD60;
+        NumericSeries MACDDiff60;
+        
+        Numeric PreBar30;
+        Numeric ooMACDValue30;
+        Numeric ooAvgMACD30;
+        NumericSeries MACDVAlue30;
+        NumericSeries AvgMACD30;
+        NumericSeries MACDDiff30;
+
+        Numeric PreBar15;
+        Numeric ooMACDValue15;
+        Numeric ooAvgMACD15;
+        NumericSeries MACDVAlue15;
+        NumericSeries AvgMACD15;
+        NumericSeries MACDDiff15;
+        
+        Numeric PreBar5;
+        Numeric ooMACDValue5;
+        Numeric ooAvgMACD5;
+        NumericSeries MACDVAlue5;
+        NumericSeries AvgMACD5;
+        NumericSeries MACDDiff5;
+
+        Numeric PreBar3;
+        Numeric ooMACDValue3;
+        Numeric ooAvgMACD3;
+        NumericSeries MACDVAlue3;
+        NumericSeries AvgMACD3;
+        NumericSeries MACDDiff3;
+
+Begin
+        PreBar60 = MtMACD(60,1,FastLength,SlowLength,MACDLength,ooMACDValue60,ooAvgMACD60);
+        MACDVAlue60 = ooMACDValue60;
+        AvgMACD60 = ooAvgMACD60;
+        MACDDiff60 = MACDValue60 - AvgMACD60;
+
+        If (MacdDiff60[PreBar60]<0 and MacdDiff60>0)
+                Commentary("60分钟MACD买入信号");
+        If (MacdDiff60[PreBar60]>0 and MacdDiff60<0)
+                Commentary("60分钟MACD卖出信号");
+
+        PreBar30 = MtMACD(30,1,FastLength,SlowLength,MACDLength,ooMACDValue30,ooAvgMACD30);
+        MACDVAlue30 = ooMACDValue30;
+        AvgMACD30 = ooAvgMACD30;
+        MACDDiff30 = MACDValue30 - AvgMACD30;
+
+        If (MacdDiff30[PreBar30]<0 and MacdDiff30>0)
+                Commentary("30分钟MACD买入信号");
+        If (MacdDiff30[PreBar30]>0 and MacdDiff30<0)
+                Commentary("30分钟MACD卖出信号");
+
+        PreBar15 = MtMACD(15,1,FastLength,SlowLength,MACDLength,ooMACDValue15,ooAvgMACD15);
+        MACDVAlue15 = ooMACDValue15;
+        AvgMACD15 = ooAvgMACD15;
+        MACDDiff15 = MACDValue15 - AvgMACD15;
+
+        If (MacdDiff15[PreBar15]<0 and MacdDiff15>0)
+                Commentary("15分钟MACD买入信号");
+        If (MacdDiff15[PreBar15]>0 and MacdDiff15<0)
+                Commentary("15分钟MACD卖出信号");
+
+        PreBar5 = MtMACD(5,1,FastLength,SlowLength,MACDLength,ooMACDValue5,ooAvgMACD5);
+        MACDVAlue5 = ooMACDValue5;
+        AvgMACD5 = ooAvgMACD5;
+        MACDDiff5 = MACDValue5 - AvgMACD5;
+
+        If (MacdDiff5[PreBar5]<0 and MacdDiff5>0)
+                Commentary("5分钟MACD买入信号");
+        If (MacdDiff5[PreBar5]>0 and MacdDiff5<0)
+                Commentary("5分钟MACD卖出信号");
+
+        PreBar3 = MtMACD(3,1,FastLength,SlowLength,MACDLength,ooMACDValue3,ooAvgMACD3);
+        MACDVAlue3 = ooMACDValue3;
+        AvgMACD3 = ooAvgMACD3;
+        MACDDiff3 = MACDValue3 - AvgMACD3;
+
+        If (MacdDiff3[PreBar3]<0 and MacdDiff3>0)
+                Commentary("3分钟MACD买入信号");
+        If (MacdDiff3[PreBar3]>0 and MacdDiff3<0)
+                Commentary("3分钟MACD卖出信号");
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 17:07:26
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

@@ -1,0 +1,28 @@
+//------------------------------------------------------------------------
+// 简称: TestMtATR
+// 名称: 
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出:
+//------------------------------------------------------------------------
+Params
+        Numeric TimeFrame(1440);        // 目标时间周期参数，参数说明参见MtBar
+        Numeric BarsBack(1);         // 目标时间周期BAR偏移参数，说明见MtBar函数
+        Numeric Length(20);                 // ATR周期
+Vars
+        NumericSeries ATRValue;
+        Numeric oATR;
+Begin
+        MtATR(TimeFrame,BarsBack,Length,oATR);
+        ATRValue = oATR;
+        PlotNumeric("ATR",ATRValue);
+End
+
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 16:50:00
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

@@ -1,0 +1,15 @@
+    Params
+            Numeric Length(14);
+    Vars
+            Numeric oDMIPlus( 0 );
+            Numeric oDMIMinus( 0 );
+            Numeric oDMI( 0 );
+            Numeric oADX( 0 );
+            Numeric oADXR( 0 );
+            Numeric oVolty( 0 );
+    Begin
+            DirMovement(Length, oDMIPlus, oDMIMinus, oDMI, oADX, oADXR, oVolty ) ;
+            PlotNumeric( "DMI+" ,oDMIPlus);
+            PlotNumeric( "DMI-" ,oDMIMinus);
+            PlotNumeric( "ADX" ,oADX);
+    End

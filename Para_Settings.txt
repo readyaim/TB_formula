@@ -1,0 +1,200 @@
+------------------------------------------------
+PlumTB, V27
+ma001:
+200604-201501
+Params
+	Numeric RiskRatio(1);				   // % Risk Per N ( 0 - 100)
+	Numeric ATRLength(20);				  // 平均波动周期 ATR Length
+	Numeric boLength(30);				   // 短周期 BreakOut Length
+	Numeric fsLength(55);				   // 长周期 FailSafe Length
+	Numeric teLength(20);				   // 离市周期 Trailing Exit Length
+	Bool LastProfitableTradeFilter(False);   // 使用入市过滤条件. True=使能入市过滤；False=关闭入市过滤
+	Numeric StopLossPara(2);				   // 止损系数 2=2N止损；1=1N止损
+	Numeric MaxTurtlePos(1);				   // 最大持仓单位数 4=4个海龟单位;1=1个海龟单位;2=2个海龟单位...
+	Numeric DefaultTurtlePos(1);				   // 默认1海龟单位开仓数量。0=RiskRatio%风险资金计算开仓数量；1=海龟单位1手；2=海龟单位2手;...
+	Numeric TurtleStopFollow(0);			//0=标准海龟，不提高止损; 1=提高一次止损(如果只开1次仓，则High增加N/2时，提高一次止损)
+	Numeric EntryOffset(0);				//0=标准海龟；2=忽略第一个买点，在第二个加仓点买入；N=忽略第N-1个买点，在第N个加仓点买入: 
+	Numeric MaxRiskDegreeAllowed(55);				//最大允许的风险度55%	
+	Numeric TailedStopRatio(0);					//跟踪止损开关。0=关闭跟踪止损(使用海龟默认的N/2跟踪止损); 1<x<50: N的倍数；>60: x*跳(MinMove)
+																//1=1*N 跟踪止损；2=2*N 跟踪止损; ...49=49*N跟踪止损
+																//60=60跳跟踪止损; 100=100跳跟踪止损....
+	Numeric TailedStopMaxCount(0);		//允许最多跟踪多少次。0=无限次; 1=只跟踪一次; 2=只跟踪2次; 3=...
+	
+	Numeric StopProfitFixedRatio(0);					 //固定止盈开关。0=关闭止盈; 1=止盈1N
+	Bool PlotLinesEnable(True);					//Enable Plot lines or not.
+	Bool ExitAtClose(True);						//True=exit at close; False=exit at High/Low
+	Bool StopPriceLockedAtExit(True);			//True=Follow TurtleStopPrice to ExitL/HPrice when breakout
+	Numeric EntryDirection(0);						//0= Both direction; 1=Long Only; -1=Short Only
+	Numeric TimeFrame(1440);
+			// 目标时间周期：月线=40320，周线=10080，日线=1440，4小时线=240
+			// 其他1小时内的周期等于相应的分钟数，如：1小时=60， 30分钟=30。。。
+			// 支持不规则分钟数，如3分钟，8分钟，之类都行
+------------------------------------------------
+PlumTB
+c001:
+200604-201501
+Params
+	Numeric RiskRatio(1);				   // % Risk Per N ( 0 - 100)
+	Numeric ATRLength(10);				  // 平均波动周期 ATR Length
+	Numeric boLength(12);				   // 短周期 BreakOut Length
+	Numeric fsLength(55);				   // 长周期 FailSafe Length
+	Numeric teLength(12);				   // 离市周期 Trailing Exit Length
+	Bool LastProfitableTradeFilter(False);   // 使用入市过滤条件. True=使能入市过滤；False=关闭入市过滤
+	Numeric StopLossPara(2);				   // 止损系数 2=2N止损；1=1N止损
+	Numeric MaxTurtlePos(2);				   // 最大持仓单位数 4=4个海龟单位;1=1个海龟单位;2=2个海龟单位...
+	Numeric DefaultTurtlePos(1);				   // 默认1海龟单位开仓数量。0=RiskRatio%风险资金计算开仓数量；1=海龟单位1手；2=海龟单位2手;...
+	Numeric TurtleStopFollow(0);			//0=标准海龟，不提高止损; 1=提高一次止损(如果只开1次仓，则High增加N/2时，提高一次止损)
+	Numeric EntryOffset(5);				//0=标准海龟；2=忽略第一个买点，在第二个加仓点买入；N=忽略第N-1个买点，在第N个加仓点买入: 
+	Numeric MaxRiskDegreeAllowed(55);				//最大允许的风险度55%	
+	Numeric TailedStopRatio(0);					//跟踪止损开关。0=关闭跟踪止损(使用海龟默认的N/2跟踪止损); 1<x<50: N的倍数；>60: x*跳(MinMove)
+																//1=1*N 跟踪止损；2=2*N 跟踪止损; ...49=49*N跟踪止损
+																//60=60跳跟踪止损; 100=100跳跟踪止损....
+	Numeric TailedStopMaxCount(0);		//允许最多跟踪多少次。0=无限次; 1=只跟踪一次; 2=只跟踪2次; 3=...
+	
+	Numeric StopProfitFixedRatio(0);					 //固定止盈开关。0=关闭止盈; 1=止盈1N
+	Bool PlotLinesEnable(True);					//Enable Plot lines or not.
+	Bool ExitAtClose(True);						//True=exit at close; False=exit at High/Low
+	Bool StopPriceLockedAtExit(True);			//True=Follow TurtleStopPrice to ExitL/HPrice when breakout
+	Numeric EntryDirection(0);						//0= Both direction; 1=Long Only; -1=Short Only
+	Numeric TimeFrame(1440);
+			// 目标时间周期：月线=40320，周线=10080，日线=1440，4小时线=240
+			// 其他1小时内的周期等于相应的分钟数，如：1小时=60， 30分钟=30。。。
+			// 支持不规则分钟数，如3分钟，8分钟，之类都行
+------------------------------------------------
+SR001:
+2011-4~2016-6
+Params
+	Numeric RiskRatio(1);				   // % Risk Per N ( 0 - 100)
+	Numeric ATRLength(20);				  // 平均波动周期 ATR Length
+	Numeric boLength(20);				   // 短周期 BreakOut Length
+	Numeric fsLength(55);				   // 长周期 FailSafe Length
+	Numeric teLength(10);				   // 离市周期 Trailing Exit Length
+	Bool LastProfitableTradeFilter(False);   // 使用入市过滤条件. True=使能入市过滤；False=关闭入市过滤
+	Numeric StopLossPara(2);				   // 止损系数 2=2N止损；1=1N止损
+	Numeric MaxTurtlePos(1);				   // 最大持仓单位数 4=4个海龟单位;1=1个海龟单位;2=2个海龟单位...
+	Numeric DefaultTurtlePos(0);				   // 默认1海龟单位开仓数量。0=RiskRatio%风险资金计算开仓数量；1=海龟单位1手；2=海龟单位2手;...
+	Numeric TurtleStopFollow(4);			//0=标准海龟，不提高止损; 1=提高一次止损(如果只开1次仓，则High增加N/2时，提高一次止损)
+	Numeric EntryOffset(2);				//0=标准海龟；2=忽略第一个买点，在第二个加仓点买入；N=忽略第N-1个买点，在第N个加仓点买入: 
+	Numeric MaxRiskDegreeAllowed(55);				//最大允许的风险度55%	
+	Numeric TailedStopRatio(0);					//跟踪止损开关。0=关闭跟踪止损(使用海龟默认的N/2跟踪止损); 1<x<50: N的倍数；>60: x*跳(MinMove)
+																//1=1*N 跟踪止损；2=2*N 跟踪止损; ...49=49*N跟踪止损
+																//60=60跳跟踪止损; 100=100跳跟踪止损....
+	Numeric TailedStopMaxCount(0);		//允许最多跟踪多少次。0=无限次; 1=只跟踪一次; 2=只跟踪2次; 3=...
+	
+	Numeric StopProfitFixedRatio(0);					 //固定止盈开关。0=关闭止盈; 1=止盈1N
+	Bool PlotLinesEnable(True);					//Enable Plot lines or not.
+	Bool ExitAtClose(True);						//True=exit at close; False=exit at High/Low
+	Bool StopPriceLockedAtExit(True);			//True=Follow TurtleStopPrice to ExitL/HPrice when breakout
+	Numeric EntryDirection(0);						//0= Both direction; 1=Long Only; -1=Short Only
+	Numeric TimeFrame(1440);
+			// 目标时间周期：月线=40320，周线=10080，日线=1440，4小时线=240
+			// 其他1小时内的周期等于相应的分钟数，如：1小时=60， 30分钟=30。。。
+			// 支持不规则分钟数，如3分钟，8分钟，之类都行
+------------------------------------------------
+RB001:
+
+Params
+	Numeric RiskRatio(1);				   // % Risk Per N ( 0 - 100)
+	Numeric ATRLength(20);				  // 平均波动周期 ATR Length
+	Numeric boLength(20);				   // 短周期 BreakOut Length
+	Numeric fsLength(55);				   // 长周期 FailSafe Length
+	Numeric teLength(10);				   // 离市周期 Trailing Exit Length
+	Bool LastProfitableTradeFilter(False);   // 使用入市过滤条件. True=使能入市过滤；False=关闭入市过滤
+	Numeric StopLossPara(2);				   // 止损系数 2=2N止损；1=1N止损
+	Numeric MaxTurtlePos(1);				   // 最大持仓单位数 4=4个海龟单位;1=1个海龟单位;2=2个海龟单位...
+	Numeric DefaultTurtlePos(0);				   // 默认1海龟单位开仓数量。0=RiskRatio%风险资金计算开仓数量；1=海龟单位1手；2=海龟单位2手;...
+	Numeric TurtleStopFollow(0);			//0=标准海龟，不提高止损; 1=提高一次止损(如果只开1次仓，则High增加N/2时，提高一次止损)
+	Numeric EntryOffset(2);				//0=标准海龟；2=忽略第一个买点，在第二个加仓点买入；N=忽略第N-1个买点，在第N个加仓点买入: 
+	Numeric MaxRiskDegreeAllowed(55);				//最大允许的风险度55%	
+	Numeric TailedStopRatio(0);					//跟踪止损开关。0=关闭跟踪止损(使用海龟默认的N/2跟踪止损); 1<x<50: N的倍数；>60: x*跳(MinMove)
+																//1=1*N 跟踪止损；2=2*N 跟踪止损; ...49=49*N跟踪止损
+																//60=60跳跟踪止损; 100=100跳跟踪止损....
+	Numeric TailedStopMaxCount(0);		//允许最多跟踪多少次。0=无限次; 1=只跟踪一次; 2=只跟踪2次; 3=...
+	
+	Numeric StopProfitFixedRatio(0);					 //固定止盈开关。0=关闭止盈; 1=止盈1N
+	Bool PlotLinesEnable(True);					//Enable Plot lines or not.
+	Bool ExitAtClose(True);						//True=exit at close; False=exit at High/Low
+	Bool StopPriceLockedAtExit(True);			//True=Follow TurtleStopPrice to ExitL/HPrice when breakout
+	Numeric EntryDirection(0);						//0= Both direction; 1=Long Only; -1=Short Only
+	Numeric TimeFrame(1440);
+			// 目标时间周期：月线=40320，周线=10080，日线=1440，4小时线=240
+			// 其他1小时内的周期等于相应的分钟数，如：1小时=60， 30分钟=30。。。
+			// 支持不规则分钟数，如3分钟，8分钟，之类都行	
+------------------------------------------------
+SR000:
+ChaosTB
+Params
+	Numeric TimeFrame(1440);	// 目标时间周期参数，参数说明参见MtBar
+	Numeric BarsBack(1);		// 目标时间周期BAR偏移参数，说明见MtBar函数
+
+	Numeric LengthLongFast(7);		// 大周期的短期均线周期, 大周期快速周期判断多空方向		
+	Numeric LengthLongSlow(12);		// 大周期的长期均线周期, 大周期慢速周期
+	Numeric LengthFast(5);		// 小周期的短期均线周期
+	Numeric LengthSlow(14);		// 小周期的长期均线周期
+	Numeric Lots(1);
+	Numeric ATRLength(20);
+	Numeric EntryDirection(0);						//0= Both direction; 1=Long Only; -1=Short Only
+	//参数：多
+	Numeric StopLossPointLong(0);				   // 止损点差
+	Numeric StopProfitPointLong(0);				//止盈点差
+	Numeric EntryStepLong(3);				//均线交叉，且二者相差EntryStepLong时，可以开仓
+	Numeric ExitStepLong(3);
+	//参数：空
+	Numeric StopLossPointShort(0);				   // 止损点差
+	Numeric StopProfitPointShort(0);
+	Numeric EntryStepShort(3);				//均线交叉，且二者相差EntryStepLong时，可以开仓
+	Numeric ExitStepShort(3);
+------------------------------------------------
+SR000:
+ChaosTB
+Params
+	Numeric TimeFrame(1440);	// 目标时间周期参数，参数说明参见MtBar
+	Numeric BarsBack(1);		// 目标时间周期BAR偏移参数，说明见MtBar函数
+
+	Numeric LengthLongFast(10);		// 大周期的短期均线周期, 大周期快速周期判断多空方向		
+	Numeric LengthLongSlow(20);		// 大周期的长期均线周期, 大周期慢速周期
+	Numeric LengthFast(10);		// 小周期的短期均线周期
+	Numeric LengthSlow(20);		// 小周期的长期均线周期
+	Numeric Lots(1);
+	Numeric ATRLength(20);
+	Numeric EntryDirection(0);						//0= Both direction; 1=Long Only; -1=Short Only
+	//参数：多
+	Numeric StopLossPointLong(220);				   // 止损点差
+	Numeric StopProfitPointLong(74);				//止盈点差
+	Numeric EntryStepLong(6);				//均线交叉，且二者相差EntryStepLong时，可以开仓
+	Numeric ExitStepLong(35);
+	//参数：空
+	Numeric StopLossPointShort(140);				   // 止损点差
+	Numeric StopProfitPointShort(90);
+	Numeric EntryStepShort(3);				//均线交叉，且二者相差EntryStepLong时，可以开仓
+	Numeric ExitStepShort(12);
+------------------------------------------------
+RB:
+Params
+    Numeric RiskRatio(1);                   // % Risk Per N ( 0 - 100)
+    Numeric ATRLength(20);                  // 平均波动周期 ATR Length
+    Numeric boLength(20);                   // 短周期 BreakOut Length
+    Numeric fsLength(80);                   // 长周期 FailSafe Length.
+    Numeric teLength(10);                   // 离市周期 Trailing Exit Length
+    Bool LastProfitableTradeFilter(True);   // 使用入市过滤条件. True=使能入市过滤；False=关闭入市过滤
+    Numeric StopLossPara(2);                   // 止损系数 2=2N止损；1=1N止损
+    Numeric MaxTurtlePosAllowed(4);                   // 最大持仓单位数 4=4个海龟单位；1=1个海龟单位
+    Numeric DefaultTurtlePos(1);                   // 默认1海龟单位开仓数量。0=RiskRatio%风险资金计算开仓数量；1=海龟单位1手；2=海龟单位2手
+    Numeric MaxRiskDegreeAllowed(60);                //最大允许的风险度60%    
+    Numeric StopProfitPoint(0);                     //使能止损。True=使能止盈；False=关闭止盈
+    Numeric maLength(20);
+------------------------------------------------
+TA:
+Params
+    Numeric RiskRatio(1);                   // % Risk Per N ( 0 - 100)
+    Numeric ATRLength(20);                  // 平均波动周期 ATR Length
+    Numeric boLength(20);                   // 短周期 BreakOut Length
+    Numeric fsLength(50);                   // 长周期 FailSafe Length.
+    Numeric teLength(10);                   // 离市周期 Trailing Exit Length
+    Bool LastProfitableTradeFilter(False);   // 使用入市过滤条件. True=使能入市过滤；False=关闭入市过滤
+    Numeric StopLossPara(2);                   // 止损系数 2=2N止损；1=1N止损
+    Numeric MaxTurtlePosAllowed(4);                   // 最大持仓单位数 4=4个海龟单位；1=1个海龟单位
+    Numeric DefaultTurtlePos(1);                   // 默认1海龟单位开仓数量。0=RiskRatio%风险资金计算开仓数量；1=海龟单位1手；2=海龟单位2手
+    Numeric MaxRiskDegreeAllowed(60);                //最大允许的风险度60%    
+    Numeric StopProfitPoint(0);                     //使能止损。True=使能止盈；False=关闭止盈
+    Numeric maLength(20);

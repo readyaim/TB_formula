@@ -1,0 +1,554 @@
+//------------------------------------------------------------------------
+// 简称: AimTB
+// 名称: Multi-Period Turtle trading system
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出:
+//------------------------------------------------------------------------
+//Change List:
+//V09: modify riskdegree (adding close[1]+freezed), modify max risk degree=55%
+//V08: add Multi Period
+//V01: based on PlumTB V16_tmp2
+//------------------------------------------------------------------------
+Params
+	Numeric RiskRatio(1);				   // % Risk Per N ( 0 - 100)
+	Numeric ATRLength(20);				  // 平均波动周期 ATR Length
+	Numeric boLength(20);				   // 短周期 BreakOut Length
+	Numeric fsLength(55);				   // 长周期 FailSafe Length
+	Numeric teLength(10);				   // 离市周期 Trailing Exit Length
+	Bool LastProfitableTradeFilter(False);   // 使用入市过滤条件. True=使能入市过滤；False=关闭入市过滤
+	Numeric StopLossPara(2);				   // 止损系数 2=2N止损；1=1N止损
+	Numeric MaxTurtlePosAllowed(3);				   // 最大持仓单位数 4=4个海龟单位；1=1个海龟单位
+	Numeric DefaultTurtlePos(1);				   // 默认1海龟单位开仓数量。0=RiskRatio%风险资金计算开仓数量；1=海龟单位1手；2=海龟单位2手
+	Numeric MaxRiskDegreeAllowed(50);				//最大允许的风险度55%	
+	Numeric StopProfitPoint(0);					 //使能止损。True=使能止盈；False=关闭止盈
+	Numeric EntryDirection(0);						//0= Both direction; 1=Long Only; -1=Short Only
+	Bool PlotLinesEnable(True);					//Enable Plot lines or not.
+	Numeric TimeFrame(1440);
+	Numeric maLengthShort(0);				  //做空回踩参数;  0=不回踩，1=回踩参数为1(1day or 1N)，2=回踩参数为2(2day or 2N), ...
+	Numeric maLengthLong(0);				   //做多回踩参数; 0=不回踩，1=回踩参数为1(1day or 1N)，2=回踩参数为2(2day or 2N), ...
+	Numeric BackWardType(0);					//0=MA backward; 1=N backward
+			// 目标时间周期：月线=40320，周线=10080，日线=1440，4小时线=240
+			// 其他1小时内的周期等于相应的分钟数，如：1小时=60， 30分钟=30。。。
+			// 支持不规则分钟数，如3分钟，8分钟，之类都行
+	
+Vars
+	Numeric MinPoint;					   // 最小变动单位
+	NumericSeries AvgTR;					// ATR
+	NumericSeries N;							  // N 值 for 1day
+	Numeric TotalEquity;					// 按最新收盘价计算出的总资产
+	Numeric TurtleUnits;					// 交易单位
+	NumericSeries DonchianHi;				  // 唐奇安通道上轨，延后1个Bar
+	NumericSeries DonchianLo;				  // 唐奇安通道下轨，延后1个Bar
+	NumericSeries fsDonchianHi;				// 唐奇安通道上轨，延后1个Bar，长周期
+	NumericSeries fsDonchianLo;				// 唐奇安通道下轨，延后1个Bar，长周期
+	NumericSeries ExitHighestPrice;			   // 离市时判断需要的N周期最高价
+	NumericSeries ExitLowestPrice;				// 离市时判断需要的N周期最低价
+	
+	NumericSeries barCnt;
+	Numeric myEntryPrice;				   // 开仓价格
+	Numeric myExitPrice;					// 平仓价格
+	NumericSeries TurtleStopPrice;					// 海龟止损位
+	Bool SendOrderThisBar(False);			  // 当前Bar有过交易
+	NumericSeries preEntryPrice(0);		   // 前一次开仓的价格
+	BoolSeries PreBreakoutFailure(True);	// 前一次突破是否失败
+	Bool ExitAllowed(False);						//是否可以平仓。True=可以平仓/止损；False=不可以平仓/止损; 每天时间14：55-14:59 =True，其他时间=False
+	Bool EntryAllowed(False);						//是否可以开仓。True=可以开仓；False=不可以开仓; 如果风险度小于MaxRiskDegreeAllowed，则=true; 否则=false
+	Numeric	RiskDegree;					//Risk degree
+	NumericSeries TurtlePos(0);					  //当前持有的海龟单位数量，应小于MaxTurtlePosAllowed
+	//Multi-Period Transfer.
+	Numeric oATR;
+	NumericSeries mtBarCnt;
+	NumericSeries mtClose;
+	Numeric refCurBar;
+	Numeric refOpen;
+	Numeric refHigh;
+	Numeric refLow;
+	Numeric refClose;
+	Numeric refVol;
+	Numeric refOpenInt;
+	NumericSeries mtHigh;
+	NumericSeries mtLow;
+	//Cascade Token to entry	
+	NumericSeries EntryTokenA(0);			   //突破Token。0=空仓；1=开多；2=开空；3=HL55突破开仓
+	NumericSeries EntryTokenB(0);			   //回踩Token
+	Bool BreakoutThisBar(false);					//True=Today is breakout day; Today is not breakthrough day
+	Numeric MA0;
+	Numeric MA1;
+Begin
+	If(BarStatus == 0)
+	{	//初始化
+		preEntryPrice = InvalidNumeric;
+		PreBreakoutFailure = false;
+		BreakoutThisBar = false;
+		EntryTokenA=0;
+		EntryTokenB=0;
+	}	
+	// 集合竞价和小节休息过滤
+	If(!CallAuctionFilter()) Return;
+	//MinPoint of every commodity
+	MinPoint = MinMove*PriceScale;	  //MinMove=最小变动价位(一跳的点数)/PriceScale
+	//Caculate N
+	MtATR(TimeFrame,1,ATRLength,oATR);
+	N=oATR;
+	
+	MA0=AverageFC(Close[1],maLengthLong);
+	MA1=AverageFC(Close[1],maLengthShort);
+	if (maLengthLong>0 && BackWardType==0)	
+	{
+		PlotNumeric("MA0",MA0,0, Red);
+	}
+	if (maLengthShort>0 && BackWardType==0)
+	{
+		PlotNumeric("MA1",MA1,0, Yellow);
+	}
+	//Money Management	
+	TotalEquity = A_CurrentEquity();
+	RiskDegree = (A_TotalMargin()+A_TotalFreeze()+Close)/A_CurrentEquity();		// (当前保证金+当前价格+冻结资金)/权益，=“再买入一笔“后的风险度
+	//根据时间判断是否可以平仓
+	ExitAllowed=False;
+	if (BarStatus!=2) 
+	{	//For back test for history data
+		if (BarType==0 && BarInterval==1)
+		{	//1day	
+			ExitAllowed=True;
+		}else if (BarType==1 && BarInterval==240)
+		{	//4Hour
+			if (time==0.2) ExitAllowed=True; 
+		}else if (BarType==1 && BarInterval==60)
+		{	//1Hour
+			if (time==0.14) ExitAllowed=True; 
+		}else if (BarType==1 && BarInterval==15)
+		{	//15min
+			if (time==0.1445) ExitAllowed=True; 
+		}else If (BarType==1 && BarInterval==5)
+		{	//5min
+			if (time==0.1455) ExitAllowed=True; 
+		}else if (BarType==1 && BarInterval==1)
+		{	//1min
+			if (time>=0.1457 && time<=0.1459) ExitAllowed=True; 
+		}
+		
+		TotalEquity = Portfolio_CurrentCapital() + Portfolio_UsedMargin();
+		RiskDegree = (Portfolio_UsedMargin()+Close)/(Portfolio_UsedMargin()+Portfolio_CurrentCapital());
+	}
+	Else
+	{	//实盘: 14:58分后可以平仓
+		if (CurrentTime >= 0.1458 && CurrentTime <= 0.145999)	//day Bar, exit at close
+			ExitAllowed=True;
+		Else
+			ExitAllowed=False;
+	}
+	
+	if ( RiskDegree*100<=MaxRiskDegreeAllowed )
+		EntryAllowed=True;
+	Else
+		EntryAllowed=False;
+	
+	//每单位手数，最少1手
+	TurtleUnits = (TotalEquity*RiskRatio/100) /(N * ContractUnit()*BigPointValue());
+	TurtleUnits = IIF(IntPart(TurtleUnits)==0, 1, IntPart(TurtleUnits));		//最小单位是1手，其余截断取整.
+	TurtleUnits = IIF(DefaultTurtlePos==0, TurtleUnits, DefaultTurtlePos);
+	//跨周期换算
+	mtBarCnt = MtBar(TimeFrame,1,refCurBar,refOpen,refHigh,refLow,refClose,refVol,refOpenInt);
+	mtClose = refClose;
+	mtHigh = refHigh;
+	mtLow = refLow;
+
+	fsDonchianHi = MtHighest(mtHigh, mtBarCnt, fslength);
+	fsDonchianLo = MtLowest(mtLow, mtBarCnt, fslength);
+	DonchianHi = MtHighest(mtHigh, mtBarCnt, bolength);
+	DonchianLo = MtLowest(mtLow, mtBarCnt, bolength);
+	ExitHighestPrice = MtHighest(mtHigh, mtBarCnt, telength);
+	ExitLowestPrice = MtLowest(mtLow, mtBarCnt, telength);
+
+	Commentary("mtBarCnt="+Text(mtBarCnt));
+	Commentary("mtHigh="+Text(mtHigh));
+	Commentary("refCurBar="+Text(refCurBar));
+	
+	Commentary("N="+Text(N));
+	Commentary("preEntryPrice="+Text(preEntryPrice));
+	Commentary("PreBreakoutFailure="+IIFString(PreBreakoutFailure,"True","False"));
+	
+	//产生第一级信号
+	// 当不使用过滤条件，或者使用过滤条件并且条件为PreBreakoutFailure为True进行后续操作
+	If(MarketPosition == 0  && TurtlePos<MaxTurtlePosAllowed && EntryTokenA==0 )
+	{
+		// 突破开仓, The 1st Pos.
+		If(High > DonchianHi && TurtleUnits >= 1 && EntryAllowed &&((!LastProfitableTradeFilter) Or (PreBreakoutFailure)) )
+		{   //enable lastprofitableTradefilter for Long
+			EntryTokenA=1;
+			BreakoutThisBar=True;
+			SetGlobalVar2("BreakoutPrice", DonchianHi);
+		}
+		If (Low < DonchianLo && TurtleUnits >= 1 && EntryAllowed)
+		{   //disable lastprofitableTradefilter for Short
+			EntryTokenA=2;
+			BreakoutThisBar=True;
+			SetGlobalVar2("BreakoutPrice", DonchianLo);
+		}
+	}
+	
+    PlotBool("BreakoutThisBar=", BreakoutThisBar);
+	
+	//产生第二级信号
+	If (MarketPosition == 0 && EntryTokenA==1)
+	{	//Backward entry for Long
+		If (maLengthLong==0)
+		{	//不回踩
+			EntryTokenB=1;
+		}Else if (BackWardType==0)
+		{	//均线回踩
+			if (Low<MA0 && !BreakoutThisBar)
+				EntryTokenB=1;
+		}Else if (BackWardType==1)
+		{	//N值回踩
+			if ((Low<GetGlobalVar2("BreakoutPrice")-maLengthLong*N) && !BreakoutThisBar)	
+				EntryTokenB=1;
+		}
+	}
+	If (MarketPosition == 0 && EntryTokenA==2)
+	{	//Backward entry for short
+		If (maLengthShort==0)
+		{	//不回踩
+			EntryTokenB=2;
+		}Else if (BackWardType==0)
+		{	//均线回踩
+			if (High>MA1 && !BreakoutThisBar)
+				EntryTokenB=2;
+		}Else if (BackWardType==1)
+		{	//N值回踩
+			if ((High>GetGlobalVar2("BreakoutPrice")+maLengthShort*N) && !BreakoutThisBar)	
+				EntryTokenB=2;
+		}
+	}
+	
+	 If (MarketPosition == 0 && EntryTokenB==1)
+	{   //开多，第一个仓位    
+		// 开仓价格取突破上轨+一个价位和最高价之间的较小值，这样能更接近真实情况，并能尽量保证成交
+		//myEntryPrice = Max(MA1,low);
+		//myEntryPrice = IIF(myEntryPrice > Open, Open, myEntryPrice); // 大跳空的时候用开盘价代替。不成交时，使用交易助手帮助成交。
+	    if (maLengthLong==0)
+		{
+			myEntryPrice = min(high,DonchianHi + MinPoint);
+			myEntryPrice = IIF(myEntryPrice < Open, Open, myEntryPrice); // 大跳空的时候用开盘价代替。不成交时，使用交易助手帮助成交。
+		}Else if (BackWardType==0)
+		{
+			myEntryPrice = MA0;
+			myEntryPrice = IIF(myEntryPrice > Open, Open, myEntryPrice); // 大跳空的时候用开盘价代替。不成交时，使用交易助手帮助成交。
+		}Else if (BackWardType==1)
+		{
+			myEntryPrice = GetGlobalVar2("BreakoutPrice")-maLengthLong*N;
+			myEntryPrice = IIF(myEntryPrice > Open, Open, myEntryPrice); // 大跳空的时候用开盘价代替。不成交时，使用交易助手帮助成交。
+		}
+	    preEntryPrice = myEntryPrice;
+	    SetGlobalVar(0,preEntryPrice);
+	    Buy(TurtleUnits,myEntryPrice);
+	    SendOrderThisBar = True;
+	    PreBreakoutFailure = False;
+	    TurtlePos=1;	//海龟单位初始仓位，1个单位
+	    TurtleStopPrice=myEntryPrice-StopLossPara * N;
+	    EntryTokenA=3;
+	
+	}Else If (MarketPosition == 0 && EntryTokenB==2)
+	{	//开空，第一个仓位    
+		// 开仓价格取突破下轨-一个价位和最低价之间的较大值，这样能更接近真实情况，并能尽量保证成交
+		if (maLengthShort==0)
+		{
+			myEntryPrice = max(low,DonchianLo - MinPoint);
+			myEntryPrice = IIF(myEntryPrice > Open, Open, myEntryPrice); // 大跳空的时候用开盘价代替
+		}Else if (BackWardType==0)
+		{
+			myEntryPrice = min(High,MA1);
+			myEntryPrice = IIF(myEntryPrice < Open, Open, myEntryPrice); // 大跳空的时候用开盘价代替
+		}Else if (BackWardType==1)
+		{
+			myEntryPrice = GetGlobalVar2("BreakoutPrice")+maLengthShort*N;
+			myEntryPrice = IIF(myEntryPrice < Open, Open, myEntryPrice); // 大跳空的时候用开盘价代替
+		}
+		
+		//myEntryPrice=high-2*MinPoint;
+	    preEntryPrice = myEntryPrice;
+	    SetGlobalVar(0,preEntryPrice);	// 保存开空价格
+	    SellShort(TurtleUnits,myEntryPrice);
+	    SendOrderThisBar = True;
+	    PreBreakoutFailure = False;
+	    TurtlePos=1;	//海龟单位初始仓位，1个单位
+	    TurtleStopPrice=myEntryPrice+StopLossPara * N;
+	    EntryTokenA=3;
+	}	
+
+ // 长周期突破开仓 Failsafe Breakout point
+    If(MarketPosition == 0)
+	{
+		//Commentary("fsDonchianHi="+Text(fsDonchianHi));
+	    If(TurtlePos==0 && High > fsDonchianHi && TurtleUnits >= 1 && EntryAllowed)
+		{
+			// 开仓价格取突破上轨+一个价位和最高价之间的较小值，这样能更接近真实情况，并能尽量保证成交
+		    myEntryPrice = min(high,fsDonchianHi + MinPoint);
+		    myEntryPrice = IIF(myEntryPrice < Open, Open, myEntryPrice); // 大跳空的时候用开盘价代替
+		    preEntryPrice = myEntryPrice;
+		    SetGlobalVar(0,preEntryPrice);
+		    Buy(TurtleUnits,myEntryPrice);
+		    SendOrderThisBar = True;
+		    PreBreakoutFailure = False;
+		    TurtlePos=1;	//海龟单位初始仓位，1个单位
+		    TurtleStopPrice=myEntryPrice-StopLossPara * N;
+		}
+	    Commentary("fsDonchianLo="+Text(fsDonchianLo));
+	    If(Low < fsDonchianLo && TurtleUnits >= 1 && EntryAllowed)
+		{
+			// 开仓价格取突破下轨-一个价位和最低价之间的较大值，这样能更接近真实情况，并能尽量保证成交
+		    myEntryPrice = max(low,fsDonchianLo - MinPoint);
+		    myEntryPrice = IIF(myEntryPrice > Open, Open,myEntryPrice); // 大跳空的时候用开盘价代替
+		    preEntryPrice = myEntryPrice;
+		    SetGlobalVar(0,preEntryPrice);	// 保存开空价格
+		    SellShort(TurtleUnits,myEntryPrice);
+		    SendOrderThisBar = True;
+		    PreBreakoutFailure = False;
+		    TurtlePos=1;	//海龟单位初始仓位，1个单位
+		    TurtleStopPrice=myEntryPrice+StopLossPara * N;
+		}
+	}
+
+	If(MarketPosition ==1) // 有多仓的情况: 加仓，止损，止盈
+	{	   
+		 //判断是否加多
+		If(TurtlePos<MaxTurtlePosAllowed && preEntryPrice!=InvalidNumeric && TurtleUnits >= 1 && EntryAllowed)
+		{
+			If(Open >= preEntryPrice + 0.5*N[BarsSinceEntry] && TurtlePos<MaxTurtlePosAllowed && BarsSinceEntry()!=0)
+			{   // 如果开盘就超过设定的1/2N && 没有满仓, 则直接用开盘价增仓。
+				myEntryPrice = Open;
+				preEntryPrice = myEntryPrice;
+				SetGlobalVar(0,preEntryPrice);
+				Buy(TurtleUnits,myEntryPrice);
+				SendOrderThisBar = True;
+				TurtlePos=TurtlePos+1;	//海龟单位增1
+				TurtleStopPrice=TurtleStopPrice+0.5 * N[BarsSinceEntry];
+			}
+
+			while(High >= preEntryPrice + 0.5*N[BarsSinceEntry] && TurtlePos<MaxTurtlePosAllowed && EntryAllowed) 
+			//while(BarStatus!=2 && High >= preEntryPrice + 0.5*N[BarsSinceEntry] && TurtlePos<MaxTurtlePosAllowed && EntryAllowed) 
+			{   // 回测，以最高价为标准，判断能进行几次增仓
+				myEntryPrice = preEntryPrice + 0.5 * N[BarsSinceEntry];
+				preEntryPrice = myEntryPrice;
+				SetGlobalVar(0,preEntryPrice);
+				Buy(TurtleUnits,myEntryPrice);
+				SendOrderThisBar = True;
+				TurtlePos=TurtlePos+1;	//海龟单位增1
+				TurtleStopPrice=TurtleStopPrice+0.5 * N[BarsSinceEntry];
+			}
+			/*
+			while(BarStatus==2 && BarsSinceEntry()!=0 && High >= preEntryPrice + 0.5*N[BarsSinceEntry] && TurtlePos<MaxTurtlePosAllowed && EntryAllowed) 
+			{	//实时交易。如果不是第一次开仓Bar，使用low值作为交易值，避免重复开仓
+				myEntryPrice = preEntryPrice + 0.5 * N[BarsSinceEntry];
+				preEntryPrice = myEntryPrice;
+				SetGlobalVar(0,preEntryPrice);
+				Buy(TurtleUnits,myEntryPrice);
+				SendOrderThisBar = True;
+				TurtlePos=TurtlePos+1;	//海龟单位增1
+				TurtleStopPrice=TurtleStopPrice+0.5 * N[BarsSinceEntry];
+			}
+			while(BarStatus==2 && BarsSinceEntry()==0 && Close >= GetGlobalVar(0) + 0.5*N && TurtlePos<MaxTurtlePosAllowed && EntryAllowed) 
+			{	//实时交易。如果是第一次开仓，使用Close值作为交易值，用全局变量米面重复开仓。（是否可行需要验证）
+				myEntryPrice = preEntryPrice + 0.5 * N[BarsSinceEntry];
+				preEntryPrice = myEntryPrice;
+				SetGlobalVar(0,preEntryPrice);
+				Buy(TurtleUnits,myEntryPrice);
+				SendOrderThisBar = True;
+				TurtlePos=TurtlePos+1;	//海龟单位增1
+				TurtleStopPrice=TurtleStopPrice+0.5 * N[BarsSinceEntry];
+			}	
+			*/
+		}
+	   
+		
+	   If(ExitAllowed && Close <= TurtleStopPrice && SendOrderThisBar == false) // 加仓Bar不止损
+		{	//止损(多)指令, 需要修改成收盘价止损
+			myExitPrice =  Close- 2*MinPoint;   //收盘价-2跳，确保成交
+			Sell(0,myExitPrice); // 数量用0的情况下将全部平仓
+			PreBreakoutFailure = True;
+			TurtlePos=0;	 //海龟持仓单位数量清0
+			EntryTokenA=0;
+			EntryTokenB=0;
+			BreakoutThisBar=false;
+		}
+		
+		//Commentary("ExitLowestPrice="+Text(ExitLowestPrice));
+		If(ExitAllowed && Close < ExitLowestPrice)
+		{   //平多
+			myExitPrice=Close-2*MinPoint;  //以收盘价平仓
+			Sell(0,myExitPrice);	// 数量用0的情况下将全部平仓
+			TurtlePos=0;	//海龟持仓单位清0
+			EntryTokenA=0;
+			EntryTokenB=0;
+			BreakoutThisBar=false;
+		}
+		
+		
+		if (StopProfitPoint !=0 && SendOrderThisBar == false && High>AvgEntryPrice()+StopProfitPoint*MinPoint)
+		{	//止盈   
+			myExitPrice=myEntryPrice+StopProfitPoint*MinPoint;  
+			If(Open > myExitPrice) myExitPrice = Open;	   // 如果该Bar开盘价即跳空触发，用开盘价代替
+			Sell(0,myExitPrice);
+			TurtlePos=0;	//海龟持仓单位清0
+			EntryTokenA=0;
+			EntryTokenB=0;
+			BreakoutThisBar=false;
+		}
+		
+		//只在日线上生效
+		if (BarType==0 && BarInterval==1 && !ExitAllowed && Low<DonchianLo && SendOrderThisBar==false)
+		{	//价格突破L20时，平多开空
+			myEntryPrice = max(low,DonchianLo - 2 * MinPoint);
+			myEntryPrice = IIF(myEntryPrice > Open, Open, myEntryPrice); // 大跳空的时候用开盘价代替。不成交时，使用交易助手帮助成交。
+			preEntryPrice = myEntryPrice;
+			//Sell(0,myEntryPrice);
+			//TurtlePos=0;	//海龟持仓单位清0
+			SellShort(1,myEntryPrice);				//反手。注意：日线时，重复发2次交易信号，需要调试。临时解决方法：开仓数量/2
+			SendOrderThisBar = True;
+			PreBreakoutFailure = False;
+			TurtlePos=1;	//海龟单位初始仓位，1个单位
+			TurtleStopPrice=myEntryPrice+StopLossPara * N;
+			
+		}
+	}Else If(MarketPosition ==-1) // 有空仓的情况
+	{
+		//判断是否加空
+		If(TurtlePos<MaxTurtlePosAllowed && preEntryPrice!=InvalidNumeric && TurtleUnits >= 1 && EntryAllowed)
+		{   // 如果开盘就超过设定的1/2N && 没有满仓, 则直接用开盘价增仓。
+			If(Open <= preEntryPrice - 0.5*N[BarsSinceEntry] && TurtlePos<MaxTurtlePosAllowed ) 
+			{   //加空，需修改成4个单位满仓
+				myEntryPrice = Open;
+				preEntryPrice = myEntryPrice;
+				SellShort(TurtleUnits,myEntryPrice);
+				SendOrderThisBar = True;
+				TurtlePos=TurtlePos+1;	//海龟单位增1
+				TurtleStopPrice=TurtleStopPrice-0.5 * N[BarsSinceEntry];
+			}
+			
+			while(Low <= preEntryPrice - 0.5*N[BarsSinceEntry] && TurtlePos<MaxTurtlePosAllowed && EntryAllowed) 
+			//while(BarStatus!=2 && Low <= preEntryPrice - 0.5*N[BarsSinceEntry] && TurtlePos<MaxTurtlePosAllowed && EntryAllowed) 
+			{// 以最低价为标准，判断能进行几次增仓
+				myEntryPrice = preEntryPrice - 0.5 * N[BarsSinceEntry];
+				preEntryPrice = myEntryPrice;
+				SetGlobalVar(0,preEntryPrice);
+				SellShort(TurtleUnits,myEntryPrice);
+				SendOrderThisBar = True;
+				TurtlePos=TurtlePos+1;	//海龟单位增1
+				TurtleStopPrice=TurtleStopPrice-0.5 * N[BarsSinceEntry];
+			}
+			/*
+			while(BarStatus==2 && BarsSinceEntry()!=0 && low <= preEntryPrice - 0.5*N && TurtlePos<MaxTurtlePosAllowed && EntryAllowed) 
+			{	//实时交易。如果不是第一次开仓Bar，使用low值作为交易值，避免重复开仓
+				myEntryPrice = preEntryPrice - 0.5 * N[BarsSinceEntry];
+				preEntryPrice = myEntryPrice;
+				SetGlobalVar(0,preEntryPrice);
+				SellShort(TurtleUnits,myEntryPrice);
+				SendOrderThisBar = True;
+				TurtlePos=TurtlePos+1;	//海龟单位增1
+				TurtleStopPrice=TurtleStopPrice-0.5 * N[BarsSinceEntry];
+			}
+			while(BarStatus==2 && BarsSinceEntry()==0 && Close <= GetGlobalVar(0) - 0.5*N && TurtlePos<MaxTurtlePosAllowed && EntryAllowed) 
+			{	//实时交易。如果是第一次开仓，使用Close值作为交易值，用全局变量避免重复开仓。（是否可行需要验证）
+			    myEntryPrice = preEntryPrice - 0.5 * N[BarsSinceEntry];
+			    preEntryPrice = myEntryPrice;
+				SetGlobalVar(0,preEntryPrice);
+				SellShort(TurtleUnits,myEntryPrice);
+				SendOrderThisBar = True;
+				TurtlePos=TurtlePos+1;	//海龟单位增1
+				TurtleStopPrice=TurtleStopPrice-0.5 * N[BarsSinceEntry]; 
+			}
+			*/
+		}
+
+		// 止损(空)指令, 需修改成收盘价止损
+		If(ExitAllowed && Close >= TurtleStopPrice && SendOrderThisBar==false) // 加仓Bar不止损
+		{   
+			myExitPrice =  Close+ 2*MinPoint;   //收盘价+2跳，确保成交
+			BuyToCover(0,myExitPrice); // 数量用0的情况下将全部平仓
+			PreBreakoutFailure = True;
+			TurtlePos=0;	//海龟持仓单位数量清0
+			EntryTokenA=0;
+			EntryTokenB=0;
+			BreakoutThisBar=false;
+		}
+		// 求出持空仓时离市的条件比较值
+		//Commentary("ExitHighestPrice="+Text(ExitHighestPrice));
+		if (ExitAllowed && Close > ExitHighestPrice)		
+		{   //平空
+			myExitPrice =  Close+ 2*MinPoint;   //收盘价-2跳，确保成交
+			BuyToCover(0,myExitPrice);	// 数量用0的情况下将全部平仓
+			TurtlePos=0;	//海龟持仓单位数量清0
+			EntryTokenA=0;
+			EntryTokenB=0;
+			BreakoutThisBar=false;
+		}
+		
+		//止盈
+		if (StopProfitPoint!=0 && SendOrderThisBar == false && High<AvgEntryPrice-StopProfitPoint*MinPoint)
+		{   
+			myExitPrice=myEntryPrice-StopProfitPoint*MinPoint;  
+			If(Open < myExitPrice) myExitPrice = Open;	   // 如果该Bar开盘价即跳空触发，用开盘价代替
+			BuyToCover(0,myExitPrice);	// 数量用0的情况下将全部平仓
+			TurtlePos=0;
+			EntryTokenA=0;
+			EntryTokenB=0;
+			BreakoutThisBar=false;
+		}
+		//只在日线上生效
+		//价格突破H20时，平空开多
+		if (BarType==0 && BarInterval==1 && High>DonchianHi && SendOrderThisBar==false)
+		{
+			myEntryPrice = min(high,DonchianHi + MinPoint);
+			myEntryPrice = IIF(myEntryPrice < Open, Open, myEntryPrice); // 大跳空的时候用开盘价代替。不成交时，使用交易助手帮助成交。
+			preEntryPrice = myEntryPrice;
+			//BuyToCover(0,myEntryPrice);
+			//TurtlePos=0;	//海龟持仓单位清0
+			Buy(1,myEntryPrice);			//注意：日线时，重复发2次交易信号，需要调试。临时解决方法：开仓数量/2
+			SendOrderThisBar = True;
+			PreBreakoutFailure = False;
+			TurtlePos=1;	//海龟单位初始仓位，1个单位
+			TurtleStopPrice=myEntryPrice-StopLossPara * N;
+		}
+	}
+	if (PlotLinesEnable)
+	{
+		PlotNumeric("DonchianHi",DonchianHi,0,Red);
+		PlotNumeric("DonchianLo",DonchianLo,0,Red);
+		PlotNumeric("fsDonchianHi",fsDonchianHi,0,DarkGray);
+		PlotNumeric("fsDonchianLo",fsDonchianLo,0,DarkGray);
+		PlotNumeric("ExitLowestPrice",ExitLowestPrice,0,Green);
+		PlotNumeric("ExitHighestPrice",ExitHighestPrice,0,Green);
+	}
+	Commentary("TurtleStopPrice="+Text(TurtleStopPrice));
+	Commentary("TurtlePos="+Text(TurtlePos));
+	//Commentary("TurtleUnits="+Text(TurtleUnits));
+	//Commentary("TotalEquity="+Text(TotalEquity));
+	//Commentary("BarType="+Text(BarType));
+	//Commentary("BarInterval="+Text(BarInterval));
+	//Commentary("MarketPosition="+Text(MarketPosition));
+	
+	//Commentary("A_CurrentEquity="+Text(A_CurrentEquity)); 
+	//Commentary("A_TotalMargin="+Text(A_TotalMargin)); 
+	PlotBool("ExitAllowed", ExitAllowed);
+	Commentary("RiskDegree="+Text(RiskDegree)); 
+	Commentary("A_TotalFreeze="+Text(A_TotalFreeze)); 
+	//Commentary("Date="+Text(Date));
+	//Commentary("Time="+Text(Time));
+	//Commentary("Minute="+Text(Minute));
+	//Commentary("CurrentDate="+Text(CurrentDate));
+	//Commentary("CurrentTime="+Text(CurrentTime)); 
+	//Commentary("MyMinuteTime="+Text(MyMinuteTime));  
+End
+
+
+
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 10:38:04
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

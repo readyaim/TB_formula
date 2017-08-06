@@ -1,0 +1,225 @@
+//------------------------------------------------------------------------
+// 简称: TaijiTB
+// 名称: 日内交易系统
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出:
+//Change List:
+//V03
+//V01: Start
+//------------ ------------------------------------------------------------
+
+Params
+	Numeric TimeFrame(1440);	// 目标时间周期参数，参数说明参见MtBar
+	Numeric BarsBack(1);		// 目标时间周期BAR偏移参数，说明见MtBar函数
+	Numeric Lots(1);
+	Numeric ATRLength(14);
+	Numeric EntryDirection(0);						//0= Both direction; 1=Long Only; -1=Short Only
+	Numeric EntryThreshold(0.55);				//<1=N的倍数；>2实际点数
+	Numeric StartTimeOffset(15);				//延迟开仓1分钟
+	Numeric StopProfitPoint(0.7);				//<1=N的倍数；>2实际点数
+	Numeric ExitTimeOffset(1);				//提前平仓1分钟
+	Numeric DisplayPlotLines(0);
+	Numeric TradeSystemType(0);					//系统类型. 0=幅度突破开仓，1=N条K线H/L突破
+	Numeric BarsOffset(100);
+	Numeric MaxEntryOffsetPoint(40);			//变化超过MaxEntryOffsetPoint，开仓
+	
+Vars
+	Numeric MinPoint;					   // 最小变动单位
+	Numeric oATR;
+	NumericSeries MAFast;
+	NumericSeries MASlow;
+	NumericSeries N;							  // N 值 for 1day
+	//Cascade Token to entry	
+	NumericSeries EntrySigShort(0);			   //信号A。0=空仓；1=可以开多；2=可以开空
+	NumericSeries EntrySigLong(0);			   //1=可以开多
+	NumericSeries EntryTokenC(0);			   //1=可以开空
+	NumericSeries TaijiStopPrice;					// 止损价
+	//Price
+	Numeric myExitPrice;
+	Numeric myEntryPrice;
+	Numeric EntryPriceLong;
+	Numeric EntryPriceShort;
+	//Control
+	Bool SendOrderThisBar(False);			  // 当前Bar有过交易
+	//Statistics
+	NumericSeries StopProfitTradeNum(0);	//止盈交易的次数
+	NumericSeries StopLossTradeNum(0);	//止损交易的次数
+	
+	NumericSeries OpenOfDay(0);
+	Bool ExitAllowed(False);						//是否可以平仓。True=可以平仓/止损；False=不可以平仓/止损; 每天时间14：55-14:59 =True，其他时间=False
+	Numeric EntryAllowed(0);
+	NumericSeries TradeOnToday(0);		//1=今天交易过一次
+	NumericSeries BarsCount(0);						//当天的BAR计数
+	NumericSeries DonchianHi(0);
+	NumericSeries DonchianLo(0);
+	Numeric StopProfitOffset(0);
+	Numeric EntryOffsetLong;
+	Numeric EntryOffsetShort;
+Begin
+	If(BarStatus == 0)
+	{	//初始化
+		EntrySigShort=0;
+		EntrySigLong=0;
+		EntryTokenC=0;
+		EntryAllowed=0;
+		TradeOnToday=0;
+		OpenOfDay=Open;
+		DonchianHi=High;
+		DonchianLo=Low;
+	}	
+	// 集合竞价和小节休息过滤
+	If(!CallAuctionFilter()) Return;
+	//MinMove=最小变动价位(一跳的点数)/PriceScale
+	MinPoint = MinMove*PriceScale;
+	
+	//计算ATR
+	MtATR(TimeFrame,1,ATRLength,oATR);
+	N=oATR;
+	Commentary("Time="+Text(Time));
+	
+	
+	if (time==0.21) 
+	{
+		OpenOfDay=Open;
+		EntrySigShort=0;		//初始化信号
+		EntrySigLong=0;
+		TradeOnToday=0;
+		BarsCount=0;
+		//EntryAllowed=1;
+	}Else
+	{
+		BarsCount=BarsCount[1]+1;
+	}
+	Commentary("BarsCount="+Text(BarsCount));
+	If (BarsCount<=BarsOffset)
+	{
+		DonchianHi=Highest(High[1],BarsCount-1);	
+		DonchianLo=Lowest(Low[1],BarsCount-1);
+	}
+	
+	Commentary("DonchianHi="+Text(DonchianHi));
+	Commentary("DonchianLo="+Text(DonchianLo));
+	If (EntryThreshold<1)
+	{
+		EntryOffsetLong=min(EntryThreshold*N, MaxEntryOffsetPoint);
+		EntryOffsetShort=min(EntryThreshold*N, MaxEntryOffsetPoint);
+		EntryPriceLong=OpenOfDay+EntryOffsetLong;
+		EntryPriceShort=OpenOfDay-EntryOffsetShort;
+	}Else if (EntryThreshold>2)
+	{
+		EntryPriceLong=OpenOfDay+EntryThreshold;
+		EntryPriceShort=OpenOfDay-EntryThreshold;
+	}
+	
+	If (StopProfitPoint<1)
+	{
+		StopProfitOffset=StopProfitPoint*N;
+	}Else If (StopProfitPoint>2)
+	{
+		StopProfitOffset=StopProfitPoint;
+	}
+	
+	EntryAllowed=0;
+	//If ((Time>=0.21+StartTimeOffset*0.0001 && Time<=0.2330) || (Time>=0.09+StartTimeOffset*0.0001 && Time<0.1330) || (Time>0.1330+StartTimeOffset*0.0001 && Time<0.140))		//过滤开盘十分钟
+	If ((Time>=0.21+StartTimeOffset*0.0001 && Time<=0.2330) || (Time>=0.09+StartTimeOffset*0.0001 && Time<0.1330))		//过滤开盘十分钟
+		EntryAllowed=1;
+		
+	if (time>=0.1455-ExitTimeOffset*0.0001 && Time<=0.15) 	//收盘平仓
+		ExitAllowed=True;
+	
+	
+	
+	if (TradeSystemType==0)
+	{	//幅度突破
+		If (High>EntryPriceLong) 
+		{
+			EntrySigLong=1;
+			EntrySigShort=0;
+		}else if (Low<EntryPriceShort) 
+		{	
+			EntrySigLong=0;
+			EntrySigShort=1;
+		}
+	}Else if (TradeSystemType==1)
+	{	//新高新低突破
+		If (BarsCount>BarsOffset && High>DonchianHi)
+		{
+			EntrySigLong=1;
+			EntrySigShort=0;	
+		}Else If (BarsCount>BarsOffset && Low<DonchianLo)
+		{
+			EntrySigLong=0;
+			EntrySigShort=1;
+		}
+	}
+	Commentary("EntryAllowed="+Text(EntryAllowed));
+	If (MarketPosition==0)
+	{	//开仓
+		If (EntrySigLong==1 && EntryAllowed==1 && TradeOnToday==0)
+		{
+			myEntryPrice=max(EntryPriceLong, High+2*MinMove);
+			myEntryPrice=IIF(Open>myEntryPrice, Open, myEntryPrice);
+			Buy(lots, myEntryPrice);
+			EntryAllowed=0;
+			TradeOnToday=1;
+			SendOrderThisBar=True;
+		}
+		If (EntrySigShort==1 && EntryAllowed==1 && TradeOnToday==0)
+		{
+			myEntryPrice=min(EntryPriceShort, Low-2*MinMove);
+			myEntryPrice=IIF(Open<myEntryPrice, Open, myEntryPrice);
+			SellShort(lots, myEntryPrice);
+			EntryAllowed=0;
+			TradeOnToday=1;
+			SendOrderThisBar=True;
+		}
+		//止损
+	}
+	If (MarketPosition==1 && StopProfitPoint!=0)
+	{	//止盈(多)
+		if (High>=EntryPrice+StopProfitOffset && SendOrderThisBar==False)
+		{
+			myExitPrice=min(High, EntryPrice+StopProfitPoint*N);
+			myExitPrice=IIF(Open>myExitPrice, Open, myExitPrice);
+			Sell(0, myExitPrice);
+		}
+	}
+	If (MarketPosition==-1 && StopProfitPoint!=0)
+	{	//止盈(空)
+		if (Low<=EntryPrice-StopProfitOffset && SendOrderThisBar==False)
+		{
+			myExitPrice=Max(Low, EntryPrice-StopProfitPoint*N);
+			myExitPrice=IIF(Open<myExitPrice, Open, myExitPrice);
+			BuytoCover(0, myExitPrice);
+		}
+	}
+	
+	//收盘平仓
+	If (ExitAllowed==True)
+	{	
+		If (MarketPosition==1) 	Sell(0,Close);
+		Else if (MarketPosition==-1) 	BuytoCover(0, Close);
+	}
+	
+	PlotNumeric("OpenOfDay",OpenOfDay,0,Red);
+	if (DisplayPlotLines==1 )
+	{
+		PlotNumeric("EntryPriceLong",EntryPriceLong,0,Red);
+		PlotNumeric("EntryPriceShort",EntryPriceShort,0,Red);
+	}
+	//PlotNumeric("DonchianHi",DonchianHi,0,Red);
+	//PlotNumeric("DonchianLo",DonchianLo,0,Red);
+	PlotBool("ExitAllowed", ExitAllowed);
+	
+	
+End
+
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/07/26 17:58:21
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

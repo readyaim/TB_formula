@@ -1,0 +1,103 @@
+    //------------------------------------------------------------------------
+// 简称: MACDRS_TB
+    // 名称: MACD Resonance System, 仅适用于1分钟周期
+    // 类别: 交易指令
+    // 类型: 多头建仓
+    // 输出:
+// 说明：1、系统原理很简单，MACD的柱状线，在1分钟，3分钟，5分钟，15分钟及30分钟都是红柱，即都大于0时，多头开仓。当1分钟的MACD柱线变绿柱，即小于0时，多头平仓。
+//		2、做空的条件类似，收盘平仓。
+//		3、在此提供这个系统的目录是为了演示跨周期数据处理的方法，本系统并不是一个完善有效的系统，照此交易，后果自负
+//		代码分为两部分，1个用户函数，1个交易指令。用户函数:MinsXAverage，代码如下
+    //------------------------------------------------------------------------
+
+    Params
+            Numeric FastLength(12);
+            Numeric SlowLength(26);
+            Numeric MACDLength(9);
+    Vars
+            NumericSeries MACDValue1;
+            NumericSeries MACDValue3;
+            NumericSeries MACDValue5;
+            NumericSeries MACDValue15;
+            NumericSeries MACDValue30;
+            Numeric AvgMACD1;
+            Numeric AvgMACD3;
+            Numeric AvgMACD5;
+            Numeric AvgMACD15;
+            Numeric AvgMACD30;
+            Numeric MACDDiff1;
+            Numeric MACDDiff3;
+            Numeric MACDDiff5;
+            Numeric MACDDiff15;
+            Numeric MACDDiff30;
+            Bool LongEntryCon;
+            Bool ShortEntryCon;
+            Bool LongExitCon;
+            Bool ShortExitCon;
+    Begin
+            MACDValue1 = XAverage( Close, FastLength ) - XAverage( Close, SlowLength );       
+            AvgMACD1 = XAverage(MACDValue1,MACDLength);
+            MACDDiff1 = MACDValue1 - AvgMACD1;
+
+            MACDValue3 = MinsXAverageTB(3, Close, FastLength ) - MinsXAverageTB(3, Close, SlowLength );        
+            AvgMACD3 = MinsXAverageTB(3,MACDValue3,MACDLength);
+            MACDDiff3 = MACDValue3 - AvgMACD3;
+           
+            MACDValue5 = MinsXAverageTB(5, Close, FastLength ) - MinsXAverageTB(5, Close, SlowLength );        
+            AvgMACD5 = MinsXAverageTB(5,MACDValue5,MACDLength);
+            MACDDiff5 = MACDValue5 - AvgMACD5;
+           
+            MACDValue15 = MinsXAverageTB(15, Close, FastLength ) - MinsXAverageTB(15, Close, SlowLength );        
+            AvgMACD15 = MinsXAverageTB(15,MACDValue15,MACDLength);
+            MACDDiff15 = MACDValue15 - AvgMACD15;
+           
+            MACDValue30 = MinsXAverageTB(30, Close, FastLength ) - MinsXAverageTB(30, Close, SlowLength );        
+            AvgMACD30 = MinsXAverageTB(30,MACDValue30,MACDLength);
+            MACDDiff30 = MACDValue30 - AvgMACD30;
+
+            LongEntryCon = MACDDiff1 > 0 && MACDDiff3 > 0 && MACDDiff5 > 0 && MACDDiff15 > 0 && MACDDiff30 > 0;
+            ShortEntryCon = MACDDiff1 < 0 && MACDDiff3 < 0 && MACDDiff5 < 0 && MACDDiff15 < 0 && MACDDiff30 < 0;
+           
+            LongExitCon = MACDDiff1 < 0;
+            ShortExitCon = MACDDiff1 > 0;
+           
+            Commentary("MACDDiff1="+Text(MACDDiff1));
+            Commentary("MACDDiff3="+Text(MACDDiff3));
+            Commentary("MACDDiff5="+Text(MACDDiff5));
+            Commentary("MACDDiff15="+Text(MACDDiff15));
+            Commentary("MACDDiff30="+Text(MACDDiff30));
+           
+            If(MarketPosition == 0)
+            {
+                    If(LongEntryCon)
+                    {
+                            //Buy(1,NextOpen,True);
+                            Buy(1,Open);
+                    }Else if(ShortEntryCon)
+                    {
+                            //SellShort(1,NextOpen,True);
+                            SellShort(1,Open);
+                    }               
+            }Else If(MarketPosition == 1 && LongExitCon)
+            {
+                    //Sell(1,NextOpen,True);
+                    Sell(1,Open);
+            }Else if(MarketPosition == -1 && ShortExitCon)
+            {
+                    BuyToCover(1,Open);
+            }
+           
+            If(Time >= 0.1459)
+            {
+                    Sell(1,Open);
+                    BuyToCover(1,Open);
+            }
+    End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/08/19 16:43:38
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

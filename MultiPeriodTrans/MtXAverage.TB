@@ -1,0 +1,64 @@
+//------------------------------------------------------------------------
+// 简称: MtXAverage
+// 名称: 
+// 类别: 用户函数
+// 类型: 用户函数
+// 输出: 数值型
+//------------------------------------------------------------------------
+
+//------------------------------------------------------------------------
+// 简称: MtXAverage
+// 名称: 跨期求指数移动平均（EMA）
+// 类别: 用户函数
+// 类型: 用户函数
+// 输出: 数值型
+//------------------------------------------------------------------------
+
+
+Params
+        Numeric TimeFrame(1440);        // 目标时间周期参数，参数说明参见MtBar
+        Numeric BarsBack(1);         // 目标时间周期BAR偏移参数，说明见MtBar函数
+        Numeric Length(10);
+
+
+Vars
+        NumericSeries mtBarCnt;
+        NumericSeries mtCurBar;
+        NumericSeries mtClose;
+                
+        Numeric refCurBar;
+        Numeric refOpen;
+        Numeric refHigh;
+        Numeric refLow;
+        Numeric refClose;
+        Numeric refVol;
+        Numeric refOpenInt;
+        
+        Numeric sFcactor;
+        NumericSeries XAvgValue;
+        
+Begin
+
+        mtBarCnt = MtBar(TimeFrame,BarsBack,refCurBar,refOpen,refHigh,refLow,refClose,refVol,refOpenInt);
+        mtCurBar = refCurBar; // 目标时间周期下的Bar索引
+        mtClose = refClose;   // 目标时间周期下的开盘价
+                
+                sFcactor = 2 / ( Length + 1 );
+                if (MtCurBar == 0 || XAvgValue[mtBarCnt] == InvalidNumeric)
+                {
+                        XAvgValue = mtClose;
+                }else
+                {
+                        XAvgValue = XAvgValue[mtBarCnt] + sFcactor * ( mtClose - XAvgValue[mtBarCnt] ) ;
+                }        
+                Return XAvgValue;
+
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 17:10:48
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

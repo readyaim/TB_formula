@@ -1,0 +1,67 @@
+//------------------------------------------------------------------------
+// 简称: MtMacd
+// 名称: 
+// 类别: 用户函数
+// 类型: 用户函数
+// 输出: 数值型
+//------------------------------------------------------------------------
+
+Params
+        Numeric TimeFrame(1440);        // 目标时间周期参数，参数说明参见MtBar
+        Numeric BarsBack(1);         // 目标时间周期BAR偏移参数，说明见MtBar函数
+        Numeric FastLength(12);
+        Numeric SlowLength(26);
+        Numeric MACDLength(9);
+        
+        NumericRef oMACDValue;      // 以目标时间周期下的K线数据计算出的MACDValue
+        NumericRef oAvgMACD;        // 以目标时间周期下的K线数据计算出的AvgMACD
+
+Vars
+        NumericSeries mtBarCnt;
+        NumericSeries mtCurBar;
+        NumericSeries mtClose;
+        Numeric refCurBar;
+        Numeric refOpen;
+        Numeric refHigh;
+        Numeric refLow;
+        Numeric refClose;
+        Numeric refVol;
+        Numeric refOpenInt;
+        
+        NumericSeries MACDValue; 
+        NumericSeries AvgMACD;
+        Numeric sFcactor;
+        NumericSeries XAvgValue1;
+        NumericSeries XAvgValue2;
+        
+Begin
+
+        mtBarCnt = MtBar(TimeFrame,BarsBack,refCurBar,refOpen,refHigh,refLow,refClose,refVol,refOpenInt);
+        mtCurBar = refCurBar;
+        mtClose = refClose;
+        
+        sFcactor = 2 / ( FastLength + 1 );
+        if (MtCurBar == 0 || XAvgValue1[mtBarCnt] == InvalidNumeric) XAvgValue1 = mtClose;
+        else XAvgValue1 = XAvgValue1[mtBarCnt] + sFcactor * ( mtClose - XAvgValue1[mtBarCnt] ) ;
+
+        sFcactor = 2 / ( SlowLength + 1 );
+        if (MtCurBar == 0 || XAvgValue2[mtBarCnt] == InvalidNumeric) XAvgValue2 = mtClose;
+        else XAvgValue2 = XAvgValue2[mtBarCnt] + sFcactor * ( mtClose - XAvgValue2[mtBarCnt] ) ;
+
+        MACDValue = XAvgValue1 - XAvgValue2;
+
+        sFcactor = 2 / ( MACDLength + 1 );
+        if (MtCurBar == 0 || AvgMACD[mtBarCnt] == InvalidNumeric) AvgMACD = MACDValue;
+        else AvgMACD = AvgMACD[mtBarCnt] + sFcactor * ( MACDValue - AvgMACD[mtBarCnt] ) ;
+
+        oMACDValue = MACDValue;
+        oAvgMACD = AvgMACD;
+        return mtBarCnt;
+End
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 16:43:44
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

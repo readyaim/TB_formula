@@ -1,0 +1,69 @@
+//------------------------------------------------------------------------
+// 简称: TestMtMa
+// 名称: 
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出:
+//------------------------------------------------------------------------
+ 
+Params
+        Numeric TimeFrame(1440);        // 目标时间周期参数，参数说明参见MtBar
+        Numeric BarsBack(1);                // 目标时间周期BAR偏移参数，说明见MtBar函数
+
+        Numeric Length1(10);                // 大周期的短期均线周期                
+        Numeric Length2(20);                // 大周期的长期均线周期
+        Numeric Length3(10);                // 小周期的短期均线周期
+        Numeric Length4(20);                // 小周期的长期均线周期
+        Numeric Lots(1);
+Vars
+        NumericSeries MA1;
+        NumericSeries MA2;
+        Numeric oMA1;
+        Numeric oMA2;
+
+        NumericSeries MA3;
+        NumericSeries MA4;
+Begin
+        MtMa(TimeFrame,BarsBack,Length1,oMA1);
+        MA1 = oMA1;
+        PlotNumeric("MA1",MA1);
+        MtMa(TimeFrame,BarsBack,Length2,oMA2);
+        MA2 = oMA2;
+        PlotNumeric("MA2",MA2);
+        MA3 = AverageFC(Close,Length3);
+        MA4 = AverageFC(Close,Length4);
+        PlotNumeric("MA3",MA3);
+        PlotNumeric("MA4",MA4);
+        
+        
+        If (MA1>MA2)                // 大周期均线金叉，多头趋势
+        {
+                if (MarketPosition!=1 and MA3[1]>MA4[1])
+                {
+                        Buy(Lots,Open);
+                }
+                if (MarketPosition==1 and MA3[1]<MA4[1])
+                {
+                        Sell(Lots,Open);
+                }
+        }
+        If (MA1<MA2)                // 大周期均线死叉，空头趋势
+        {
+                if (MarketPosition!=-1 and MA3[1]<MA4[1])
+                {
+                        SellShort(Lots,Open);
+                }
+                if (MarketPosition==-1 and MA3[1]>MA4[1])
+                {
+                        BuyToCover(Lots,Open);
+                }
+        }
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 16:28:18
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

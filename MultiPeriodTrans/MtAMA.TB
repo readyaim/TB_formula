@@ -1,0 +1,70 @@
+//------------------------------------------------------------------------
+// 简称: MtAMA
+// 名称: 
+// 类别: 用户函数
+// 类型: 用户函数
+// 输出: 数值型
+//------------------------------------------------------------------------
+Params
+        Numeric TimeFrame(1440);        // 目标时间周期参数，参数说明参见MtBar
+        Numeric BarsBack(1);         // 目标时间周期BAR偏移参数，说明见MtBar函数
+        Numeric EffRatioLength(10);
+        Numeric FastAvgLength(2);
+        Numeric SlowAvgLength(30);
+        NumericRef oAMAValue;        
+Vars
+ 
+    NumericSeries mtBarCnt;
+        NumericSeries mtClose;
+        NumericSeries mtCurBar;
+        Numeric refCurBar;
+        Numeric refOpen; 
+        Numeric refHigh; 
+        Numeric refLow;
+        Numeric refClose;
+        Numeric refVol;
+        Numeric refOpenInt;                 
+        Numeric NetChg(0);
+        Numeric TotChg(0);
+        Numeric EffRatio(0);
+        Numeric ScaledSFSqr(0);
+        Numeric SFDiff;
+        Numeric j;
+        Numeric i;
+        NumericSeries AMAValue;
+        
+Begin
+        mtBarCnt = MtBar(TimeFrame,BarsBack,refCurBar,refOpen,refHigh,refLow,refClose,refVol,refOpenInt);
+        mtCurBar = refCurBar;
+        mtClose = refClose;
+ 
+        j = MtRef(mtBarCnt,EffRatioLength);
+ 
+        i = MtRef(mtBarCnt,1);
+ 
+        NetChg = Abs( mtClose - mtClose[j] );
+ 
+        TotChg = MtSummation(Abs( mtClose -mtClose[i] ),mtBarCnt,EffRatioLength);
+        Commentary("TotChg:"+Text(TotChg));
+        if (MtCurBar == 0 || AMAValue[mtBarCnt] == InvalidNumeric)
+        {
+                AMAValue = mtClose;
+        }Else
+        {
+                EffRatio = IIF(TotChg > 0, NetChg / TotChg, 0);
+                SFDiff = 2 / ( FastAvgLength + 1 ) - 2 / ( SlowAvgLength + 1 );                
+                ScaledSFSqr = Sqr( 2 / ( SlowAvgLength + 1 ) + EffRatio * SFDiff );                
+                AMAValue = AMAValue[i] + ScaledSFSqr * ( mtClose - AMAValue[i] );
+        }
+                
+        oAMAValue = AMAValue;
+        Return mtBarCnt;
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 17:54:16
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

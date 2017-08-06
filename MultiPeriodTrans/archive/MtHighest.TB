@@ -1,0 +1,38 @@
+//------------------------------------------------------------------------
+// 简称: MtHigh
+// 名称: 
+// 类别: 用户函数
+// 类型: 用户函数
+// 输出: 数值型
+// V1.1 
+//------------------------------------------------------------------------
+ 
+Params
+	NumericSeries Price(1);
+	NumericSeries BarCnt(0);
+	Numeric Length(10);
+Vars
+	NumericSeries mtHigh(0);
+	Numeric i;
+	Numeric j(0);
+Begin
+	mtHigh = Price;
+	For i = 1 to Length-1
+	{
+	        If (Price[j] <> InvalidNumeric)
+	        {
+	                if (mtHigh<Price[j]) 	mtHigh=Price[j];
+	                j = j + BarCnt[j];
+	        }
+	        else Break;
+	}
+	Return mtHigh;
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 16:25:01
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

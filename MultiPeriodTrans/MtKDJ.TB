@@ -1,0 +1,108 @@
+//------------------------------------------------------------------------
+// 简称: MtKDJ
+// 名称: 
+// 类别: 用户函数
+// 类型: 用户函数
+// 输出: 数值型
+//------------------------------------------------------------------------
+
+Params
+        Numeric TimeFrame(1440);        // 目标时间周期参数，参数说明参见MtBar
+        Numeric BarsBack(1);         // 目标时间周期BAR偏移参数，说明见MtBar函数
+        Numeric Length(14);                        
+        Numeric SlowLength(3);        
+        Numeric SmoothLength(3);
+        
+        NumericRef oKValue;
+        NumericRef oDValue;
+Vars
+        NumericSeries mtBarCnt;
+        NumericSeries mtOpen;
+        NumericSeries mtHigh;
+        NumericSeries mtLow;
+        NumericSeries mtClose;
+        NumericSeries mtVol;
+        NumericSeries mtOpenInt;
+        Numeric refCurBar;
+        Numeric refOpen;
+        Numeric refHigh;
+        Numeric refLow;
+        Numeric refClose;
+        Numeric refVol;
+        Numeric refOpenInt;
+
+        NumericSeries HighestValue;                                
+        NumericSeries LowestValue;                                        
+        NumericSeries KValue;
+        Numeric DValue;
+        Numeric i;
+        Numeric j(0);
+        Numeric SumHLValue(0);
+        Numeric SumCLValue(0);
+        Numeric sumValue(0);
+
+Begin
+        mtBarCnt = MtBar(TimeFrame,BarsBack,refCurBar,refOpen,refHigh,refLow,refClose,refVol,refOpenInt);
+        mtHigh = refHigh;
+        mtLow = refLow;
+        mtClose = refClose;
+        
+        HighestValue = mtHigh;
+        LowestValue = mtLow;
+        For i = 1 to Length-1
+        {
+                j = j + mtBarCnt[j];
+                If (mtHigh[j] == InvalidNumeric) HighestValue = InvalidNumeric;
+                Else If ( mtHigh[j] > HighestValue) HighestValue = mtHigh[j];
+                If (mtLow[j] == InvalidNumeric) LowestValue = InvalidNumeric;
+                Else If ( mtLow[j] < LowestValue) LowestValue = mtLow[j];
+        }
+
+        j = 0;
+        For i = 1 to SlowLength
+        {
+                If (mtClose[j] == InvalidNumeric)
+                {
+                        SumHLValue = 0;     //InvalidNumeric;
+                        SumCLValue = 0;     //InvalidNumeric;
+                }
+                Else
+                {
+                        SumCLValue = SumCLValue + mtClose[j] - LowestValue[j];
+                        SumHLValue = SumHLValue + HighestValue[j] - LowestValue[j];
+                        j = j + mtBarCnt[j];
+                }
+        }
+
+        If (SumHLValue <> 0)
+        {
+                KValue = SumCLValue/SumHLValue*100;
+        }Else
+        {
+                KValue = 0;
+        }
+
+        j = 0;
+        For i = 1 to SmoothLength
+        {
+                If (KValue[j] == InvalidNumeric) SumValue = 0;     //InvalidNumeric;
+                Else
+                {
+                        SumValue = SumValue + KValue[j];
+                        j = j + mtBarCnt[j];
+                }
+        }
+        DValue = SumValue/SmoothLength;
+
+        oKValue = KValue;
+        oDValue = DValue;
+        return mtBarCnt;
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 16:47:37
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

@@ -1,0 +1,57 @@
+    //------------------------------------------------------------------------
+    // 简称: MinsXAverageTB
+    // 名称: 1分钟转换N分钟的指数平均
+    // 类别: 用户函数
+    // 类型: 用户函数
+    // 输出: 数值型
+    //------------------------------------------------------------------------
+
+    Params
+            Numeric nMinSet(3);
+            NumericSeries Price(10);
+            Numeric Length(10);
+    Vars
+            NumericSeries MinsBarIndex;
+            BoolSeries FirstMin(True);
+       
+            Numeric sFcactor;
+            NumericSeries XAvgValue;
+    Begin
+            If(CurrentBar == 0)
+            {
+                    FirstMin = True;
+            }Else
+            {
+                    FirstMin = FirstMin[1];
+                    If(FirstMin && IntPart(Minute/nMinSet) != IntPart(Minute[CurrentBar]/nMinSet))
+            {
+                            FirstMin = False;
+                    }
+            }
+                   
+            If(IntPart(Minute%nMinSet)==0)
+            {
+                    MinsBarIndex = 1;
+            }Else
+            {
+                    MinsBarIndex = MinsBarIndex[1] + 1;
+            }
+
+            sFcactor = 2 / ( Length + 1 );
+            if (FirstMin)
+            {
+                    XAvgValue = Price;
+            }else
+            {
+                    XAvgValue = XAvgValue[MinsBarIndex] + sFcactor * ( Price - XAvgValue[MinsBarIndex] ) ;
+            }        
+            Return XAvgValue;
+    End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/08/19 16:43:38
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

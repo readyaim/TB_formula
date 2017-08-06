@@ -1,0 +1,63 @@
+//------------------------------------------------------------------------
+// 简称: Test2TB
+// 名称: 数K线抄底系统
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出: V01
+//------------------------------------------------------------------------
+//Change List:
+//V1: based on PlumTB V16_tmp2
+//------------------------------------------------------------------------
+Params
+	Numeric NegDays(4);
+	Numeric Length(15);
+	Numeric Length1(10);
+	Numeric Length2(60);
+
+ Vars
+	Numeric MA1;
+	Numeric MA2;
+         NumericSeries NegCounter(0);
+ Begin
+ 	
+ 	
+ 	MA1=AverageFC(Close[1],Length1);
+	MA2=AverageFC(Close[1],Length2);
+	
+ 	If ( BarStatus==0)
+ 	{
+ 		NegCounter=0;
+ 	}
+ 	If (Close<Open && Open<Open[1] && Close<Close[1])
+ 	{
+ 		NegCounter=NegCounter[1]+1;
+ 	//}Else if (Close>Open)
+ 	}Else
+ 	{
+ 		NegCounter=0;
+ 	}
+ 	
+ 	If (MarketPosition==0)
+ 	{
+ 		If( (NegCounter[1]>=NegDays) && (MA1>MA2))
+ 		{
+ 			Buy(1, Open);
+ 		}
+ 	}
+ 	If (MarketPosition==1)
+ 	{
+ 		If (BarsSinceEntry==2)
+ 		{
+ 			Sell(0, Close);
+ 		}
+ 	}
+ 	
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 10:38:04
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

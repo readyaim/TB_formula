@@ -1,0 +1,106 @@
+//------------------------------------------------------------------------
+// 简称: MtRSI
+// 名称: 
+// 类别: 用户函数
+// 类型: 用户函数
+// 输出: 数值型
+//------------------------------------------------------------------------
+Params
+        Numeric TimeFrame(1440);        // 目标时间周期参数，参数说明参见MtBar
+        Numeric BarsBack(1);         // 目标时间周期BAR偏移参数，说明见MtBar函数
+        Numeric Length(14) ;
+        NumericRef oRSIValue;
+Vars
+        NumericSeries mtBarCnt;
+        NumericSeries mtClose;
+        Numeric refCurBar;
+        Numeric refOpen;
+        Numeric refHigh;
+        Numeric refLow;
+        Numeric refClose;
+        Numeric refVol;
+        Numeric refOpenInt;
+
+        NumericSeries NetChgAvg( 0 );
+        NumericSeries TotChgAvg( 0 );
+        Numeric Change( 0 );
+        Numeric SF( 0 );
+        Numeric ChgRatio( 0 ) ;
+        Numeric RSIValue;
+        BoolSeries bStopLoop;
+        Numeric i;
+        Numeric j(0);
+        Numeric K;
+        Numeric nbClose;
+        Numeric nbClose1;
+Begin
+        mtBarCnt = MtBar(TimeFrame,BarsBack,refCurBar,refOpen,refHigh,refLow,refClose,refVol,refOpenInt);
+        mtClose = refClose;
+
+        SF = 1/Length;
+        bStopLoop = bStopLoop[1];
+        If (bStopLoop!=true)
+        {
+                j = 0;
+                For i = 0 to Length
+                {
+                        If (mtClose[j] == InvalidNumeric)
+                        {
+                                nbClose = InvalidNumeric;
+                                i = Length + 1;
+                        }
+                        Else
+                        {
+                                nbClose = mtClose[j];
+                                j = j + mtBarCnt[j];
+                        }
+                }
+                if(nbClose!=InvalidNumeric and mtClose[j] != InvalidNumeric) bStopLoop = true;
+        }
+
+        If(nbClose == InvalidNumeric)
+        {
+                RSIValue = InvalidNumeric;
+        }Else
+        {
+                If(bStopLoop !=true)
+                {
+                        NetChgAvg = ( mtClose - nbClose ) / Length ;
+                        j = 0;
+                        K = 0;
+                        For i = 1 To Length
+                        {
+                                j = K + mtBarCnt[K];
+                                TotChgAvg = TotChgAvg+Abs(mtClose[K] - mtClose[j]);
+                                K = j ;
+                        }
+                        TotChgAvg = TotChgAvg / Length;
+                }
+                Else
+                {
+                        Change = mtClose - mtClose[mtBarCnt] ;
+                        NetChgAvg = NetChgAvg[mtBarCnt] + SF * ( Change - NetChgAvg[mtBarCnt] ) ;
+                        TotChgAvg = TotChgAvg[mtBarCnt] + SF * ( Abs( Change ) - TotChgAvg[mtBarCnt] ) ;
+                }
+                
+                If( TotChgAvg <> 0 )
+                {
+                        ChgRatio = NetChgAvg / TotChgAvg ;
+                }else
+                {
+                        ChgRatio = 0 ;
+                }
+                
+                RSIValue = 50 * ( ChgRatio + 1 ) ;
+        }
+        
+        oRSIValue = RSIValue;
+        return mtBarCnt;
+End
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 17:04:38
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

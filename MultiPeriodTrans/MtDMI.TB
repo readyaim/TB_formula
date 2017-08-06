@@ -1,0 +1,205 @@
+//------------------------------------------------------------------------
+// 简称: MtDMI
+// 名称: 
+// 类别: 用户函数
+// 类型: 用户函数
+// 输出: 数值型
+//------------------------------------------------------------------------
+Params
+        Numeric TimeFrame(1440);        // 目标时间周期参数，参数说明参见MtBar
+        Numeric BarsBack(1);                 // 目标时间周期BAR偏移参数，说明见MtBar函数
+        Numeric Length(14);
+        NumericRef oDMIPlus;
+        NumericRef oDMIMinus;
+        NumericRef oADX;
+Vars
+        NumericSeries mtBarCnt;
+        NumericSeries mtHigh;
+        NumericSeries mtLow;
+        NumericSeries mtClose;
+        Numeric refCurBar;
+        Numeric refOpen;
+        Numeric refHigh;
+        Numeric refLow;
+        Numeric refClose;
+        Numeric refVol;
+        Numeric refOpenInt;
+
+        NumericSeries DMIPlus;
+        NumericSeries DMIMinus;
+        NumericSeries DMI;
+        NumericSeries ADX;
+        NumericSeries ADXR;
+        NumericSeries Volty;
+        NumericSeries sDMI;
+        NumericSeries sADX;
+        NumericSeries sVolty;
+        Numeric PlusDM;
+        Numeric MinusDM;
+        Numeric UpperMove;
+        Numeric LowerMove;
+        Numeric SumPlusDM(0);
+        Numeric SumMinusDM(0);
+        Numeric SumTR(0);
+        NumericSeries AvgPlusDM;
+        NumericSeries AvgMinusDM;
+        Numeric SF;                        // smoothing factor
+        Numeric Divisor;
+        BoolSeries bStopLoop;
+        Numeric i;
+        Numeric j(0);
+        Numeric K;
+        Numeric nbHigh;
+        NumericSeries TRValue;
+        Numeric CumValue(0);
+Begin
+        mtBarCnt = MtBar(TimeFrame,BarsBack,refCurBar,refOpen,refHigh,refLow,refClose,refVol,refOpenInt);
+        mtHigh = refHigh;
+        mtLow = refLow;
+        mtClose = refClose;
+        
+        SF = 1/Length;
+
+        TRValue = IIF(mtHigh >= mtClose[mtBarCnt],mtHigh,mtClose[mtBarCnt]) - IIF(mtLow <= mtClose[mtBarCnt],mtLow,mtClose[mtBarCnt]);
+
+        bStopLoop = bStopLoop[1];
+        If (bStopLoop!=true)
+        {
+                j = 0;
+                For i = 0 to Length
+                {
+                        If (mtHigh[j] == InvalidNumeric)
+                        {
+                                nbHigh = InvalidNumeric;
+                                i = Length + 1;
+                        }
+                        Else
+                        {
+                                nbHigh = mtHigh[j];
+                                j = j + mtBarCnt[j];
+                        }
+                }
+                if(nbHigh!=InvalidNumeric and mtHigh[j] != InvalidNumeric) bStopLoop = true;
+        }
+        If(nbHigh == InvalidNumeric)
+        {
+                DMIPlus = InvalidNumeric;
+                DMIMinus = InvalidNumeric;
+                DMI = InvalidNumeric;
+                ADX = InvalidNumeric;
+                ADXR = InvalidNumeric;
+                Volty = InvalidNumeric;
+                //RSIValue = InvalidNumeric;
+        }Else
+        {
+                If(bStopLoop !=true)
+                {
+                        j = 0;
+                        K = 0;
+                        For i = 1 To Length
+                        {
+                                j = K + mtBarCnt[K];
+
+                                PlusDM = 0 ;
+                                MinusDM = 0 ;
+                                UpperMove = High[K] - High[j] ;
+                                LowerMove = Low[j] - Low[K] ;
+                                if (UpperMove > LowerMove and UpperMove > 0 )
+                                {
+                                        PlusDM = UpperMove;
+                                }else if (LowerMove > UpperMove and LowerMove > 0)
+                                {
+                                        MinusDM = LowerMove ;
+                                }
+                                SumPlusDM = SumPlusDM + PlusDM ;
+                                SumMinusDM = SumMinusDM + MinusDM ;
+                                SumTR = SumTR + TRValue[K] ;
+
+                                K = j ;
+                        }
+                        AvgPlusDM = SumPlusDM / Length ;
+                        AvgMinusDM = SumMinusDM / Length ;
+                        sVolty = SumTR / Length ;
+                }
+                Else
+                {
+                        PlusDM = 0 ;
+                        MinusDM = 0 ;
+                        UpperMove = mtHigh - mtHigh[mtBarCnt] ;
+                        LowerMove = mtLow[mtBarCnt] - mtLow ;
+                        if (UpperMove > LowerMove and UpperMove > 0 )
+                        {
+                                PlusDM = UpperMove;
+                        }else if (LowerMove > UpperMove and LowerMove > 0 )
+                        {
+                                MinusDM = LowerMove ;
+                        }
+                        AvgPlusDM = AvgPlusDM[mtBarCnt] + SF * ( PlusDM - AvgPlusDM[mtBarCnt] ) ;
+                        AvgMinusDM = AvgMinusDM[mtBarCnt] + SF * ( MinusDM - AvgMinusDM[mtBarCnt] ) ;
+                        sVolty = sVolty[mtBarCnt] + SF * ( TRValue  - sVolty[mtBarCnt] ) ;
+                }
+
+                if (sVolty > 0)
+                {
+                        DMIPlus = 100 * AvgPlusDM / sVolty ;
+                        DMIMinus = 100 * AvgMinusDM / sVolty ;
+                }else
+                {
+                        DMIPlus = 0 ;
+                        DMIMinus = 0 ;
+                }
+
+                Divisor = DMIPlus + DMIMinus ;
+                if (Divisor > 0)
+                {
+                        sDMI = 100 * Abs( DMIPlus - DMIMinus ) / Divisor;
+                }else
+                {
+                        sDMI = 0 ;
+                }
+
+                if (bStopLoop != true)
+                {
+                        K = 0;
+                        j = 0;
+                        For i = 0 To Length - 1
+                        {
+                                CumValue = CumValue + sDMI[K];
+                                j = K + mtBarCnt[K];
+                                If (mtHigh[j] != InvalidNumeric) K = j;
+                                else
+                                {
+                                        j = i;
+                                        i = Length + 1;
+                                }
+                        }
+                        sADX = CumValue / j ;
+                        ADXR = ( sADX + sADX[ K-1 ] ) * 0.5 ;
+                }else  
+                {
+                        sADX = sADX[mtBarCnt] + SF * ( sDMI - sADX[mtBarCnt] ) ;
+                        j = 0;
+                        For i = 0 To Length-1
+                        {
+                                j = j + mtBarCnt[j];
+                        }
+                        ADXR = ( sADX + sADX[ j ] ) * 0.5 ;
+                }
+                Volty = sVolty;
+                DMI = sDMI;
+                ADX = sADX;
+
+        }
+        oDMIPlus = DMIPlus;
+        oDMIMinus = DMIMinus;
+        oADX = ADX;
+        return mtBarCnt;
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 16:45:28
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

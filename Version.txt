@@ -1,0 +1,20 @@
+Latest:
+PlumTB_V14:(Turtle)
+. based on V13
+. updates default params (1N stop and Max 3 units)
+AimTB_V07:(Turtle with backward entry)
+. Based on V06
+. Add MA backward entry and N backward entry.
+. Result matches PlumTB when MA days =0
+-------------
+PlumTB_V13:
+. Remove Fake breakout
+. Standard Turtle Trading system
+-------------
+AimTB_V05:
+. Trading for Turlte with backward Entry
+. Long: disable MA; Enable lastprofitableTradefilter
+. Short enables MA; Disable lastprofitableTradefilter
+-------------
+PlumTB_V12:
+.add Fake breakout

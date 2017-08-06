@@ -1,0 +1,182 @@
+//------------------------------------------------------------------------
+// 简称: ChaosTB
+// 名称: 混沌交易系统
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出:
+//Change List:
+//V03: add 不止损选项，不止盈选项
+//V02: Dual MA(large, small), with stop profit and stop loss.
+//V01: Start
+//------------------------------------------------------------------------
+
+Params
+	Numeric TimeFrame(1440);	// 目标时间周期参数，参数说明参见MtBar
+	Numeric BarsBack(1);		// 目标时间周期BAR偏移参数，说明见MtBar函数
+
+	Numeric LengthLongFast(10);		// 大周期的短期均线周期, 大周期快速周期判断多空方向		
+	Numeric LengthLongSlow(20);		// 大周期的长期均线周期, 大周期慢速周期
+	Numeric LengthFast(10);		// 小周期的短期均线周期
+	Numeric LengthSlow(20);		// 小周期的长期均线周期
+	Numeric Lots(1);
+	Numeric ATRLength(20);
+	Numeric EntryDirection(0);						//0= Both direction; 1=Long Only; -1=Short Only
+	//参数：多
+	Numeric StopLossPointLong(220);				   // 止损点差. 0=不止损, >0=止损点差
+	Numeric StopProfitPointLong(74);				//止盈点差. 0=不止盈, >0=止盈点差
+	Numeric EntryStepLong(6);				//均线交叉，且二者相差EntryStepLong时，可以开仓
+	Numeric ExitStepLong(35);
+	//参数：空
+	Numeric StopLossPointShort(140);			   // 止损点差. 0=不止损, >0=止损点差
+	Numeric StopProfitPointShort(90);				//止盈点差. 0=不止盈, >0=止盈点差
+	Numeric EntryStepShort(3);				//均线交叉，且二者相差EntryStepLong时，可以开仓
+	Numeric ExitStepShort(12);
+	
+Vars
+	Numeric MinPoint;					   // 最小变动单位
+	NumericSeries MALongFast;
+	NumericSeries MALongSlow;
+	Numeric oMALongFast;
+	Numeric oMALongSlow;
+	Numeric oATR;
+	NumericSeries MAFast;
+	NumericSeries MASlow;
+	NumericSeries N;							  // N 值 for 1day
+	//Cascade Token to entry	
+	NumericSeries EntryTokenA(0);			   //信号A。0=空仓；1=可以开多；2=可以开空
+	NumericSeries EntryTokenB(0);			   //1=可以开多
+	NumericSeries EntryTokenC(0);			   //1=可以开空
+	NumericSeries ChaosStopPrice;					// 止损价
+	//Price
+	Numeric myExitPrice;
+	Numeric myEntryPrice;
+	//Control
+	Bool SendOrderThisBar(False);			  // 当前Bar有过交易
+	//Statistics
+	NumericSeries StopProfitTradeNum(0);	//止盈交易的次数
+	NumericSeries StopLossTradeNum(0);	//止损交易的次数
+	
+	
+Begin
+	If(BarStatus == 0)
+	{	//初始化
+		EntryTokenA=0;
+		EntryTokenB=0;
+		EntryTokenC=0;
+	}	
+	// 集合竞价和小节休息过滤
+	If(!CallAuctionFilter()) Return;
+	//MinMove=最小变动价位(一跳的点数)/PriceScale
+	MinPoint = MinMove*PriceScale;
+	//大周期的快速均线
+	MtMa(TimeFrame,BarsBack,LengthLongFast,oMALongFast);
+	MALongFast = oMALongFast;
+	PlotNumeric("MALongFast",MALongFast);
+	//大周期的慢速均线
+	MtMa(TimeFrame,BarsBack,LengthLongSlow,oMALongSlow);
+	MALongSlow = oMALongSlow;
+	PlotNumeric("MALongSlow",MALongSlow);
+	//小周期快速均线
+	MAFast = AverageFC(Close,LengthFast);
+	PlotNumeric("MAFast",MAFast);
+	//小周期慢速均线
+	MASlow = AverageFC(Close,LengthSlow);
+	PlotNumeric("MASlow",MASlow);
+	//计算ATR
+	MtATR(TimeFrame,1,ATRLength,oATR);
+	N=oATR;
+	
+	//长周期决定开仓方向
+	If (MALongFast>MALongSlow)
+		EntryTokenA=1;						//Direction is Long
+	Else
+		EntryTokenA=2;						//Direction is Short
+
+	If ((CrossOver(MAFast, MASlow)) && EntryTokenA==1)
+		EntryTokenB=1;						//Open Long is allowed
+	If ((CrossUnder(MAFast, MASlow)) && EntryTokenA==2)
+		EntryTokenC=1;						//Open Long is allowed
+	
+	if (EntryTokenB==1)
+	{
+		if ((MarketPosition==0 || MarketPosition==-1) && ((MAFast-MASlow)>EntryStepLong))
+		{	//开多
+			if (EntryDirection==0 || EntryDirection==1)
+			{
+				Buy(lots, Open);
+				ChaosStopPrice=Open-StopLossPointLong;
+				SendOrderThisBar=True;
+			}
+		}
+		if (MarketPosition ==1)
+		{	//平多
+			if (StopProfitPointLong>0 && High>EntryPrice+StopProfitPointLong && SendOrderThisBar == False)
+			{	//止盈(平多)
+				myExitPrice=IIF(Open>EntryPrice+StopProfitPointLong, Open, EntryPrice+StopProfitPointLong);		//跳空开盘，以开盘价平多
+				Sell(0, myExitPrice);
+				EntryTokenB=0;
+			}
+			//止多
+			if (StopLossPointLong>0 && Low<ChaosStopPrice && SendOrderThisBar == False)
+			{	//止损(多)
+				myExitPrice= min(low, ChaosStopPrice-2*MinPoint);
+				Sell(0, myExitPrice);
+				EntryTokenB=0;
+			}
+			//
+			if ((MAFast+ExitStepLong)<MASlow && SendOrderThisBar == False)
+			{	//平多，均线死叉
+				Sell(0, Open);
+				EntryTokenB=0;
+			}
+		}
+	}
+	Commentary("EntryTokenC="+Text(EntryTokenC));
+	Commentary("MarketPosition="+Text(MarketPosition));
+	
+	// 做空
+	if (EntryTokenC==1)
+	{
+		if ((MarketPosition==0 || MarketPosition==1) && ((MASlow-MAFast)>EntryStepShort))
+		{	//开空
+			if (EntryDirection==0 || EntryDirection==-1)
+			{
+				SellShort(lots, Open);
+				ChaosStopPrice=Open+StopLossPointShort;
+				SendOrderThisBar=True;
+			}
+		}
+		if (MarketPosition ==-1)
+		{	//平空
+			if (StopProfitPointShort>0  && Low<EntryPrice-StopProfitPointShort && SendOrderThisBar == False)
+			{	//止盈(平空)
+				myExitPrice=IIF(Open<EntryPrice-StopProfitPointShort, Open, EntryPrice-StopProfitPointShort);		//跳空开盘，以开盘价平多
+				BuyToCover(0, myExitPrice);
+				EntryTokenC=0;
+			}
+			//止多
+			if (StopLossPointShort>0 && High>ChaosStopPrice && SendOrderThisBar == False)
+			{	//止损(空)
+				myExitPrice= min(High, ChaosStopPrice+2*MinPoint);
+				BuyToCover(0, myExitPrice);
+				EntryTokenC=0;
+			}
+			//
+			if ((MASlow+ExitStepShort)<MAFast && SendOrderThisBar == False)
+			{	//平空，均线金叉
+				BuyToCover(0, Open);
+				EntryTokenC=0;
+			}
+		}
+	}
+	
+End
+
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/07/15 16:09:42
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

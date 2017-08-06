@@ -1,0 +1,29 @@
+//------------------------------------------------------------------------
+// 简称: MyTimeDiff
+// 名称: 计算两个时间相差的秒数
+// 类别: 用户函数
+// 类型: 用户函数
+// 输出: 数值型
+//------------------------------------------------------------------------
+
+Params
+         Numeric MyTime1; //如143059
+         Numeric MyTime2;
+
+ Vars
+         Numeric MyHH1;
+         Numeric MyMM1;
+         Numeric MySS1;
+         Numeric MyHH2;
+         Numeric MyMM2;
+         Numeric MySS2;
+
+ Begin
+         MyHH1 = IntPart(MyTime1/10000);
+         MyMM1 = IntPart(MyTime1/100)-MyHH1*100;
+         MySS1 = MyTime1-MyHH1*10000-MyMM1*100;
+         MyHH2 = IntPart(MyTime2/10000);
+         MyMM2 = IntPart(MyTime2/100)-MyHH2*100;
+         MySS2 = MyTime2-MyHH2*10000-MyMM2*100;
+         Return MyHH1*3600 + MyMM1*60 + MySS1 - MyHH2*3600 - MyMM2*60 - MySS2;
+ End

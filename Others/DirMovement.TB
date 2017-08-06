@@ -1,0 +1,133 @@
+//新建一个用户函数，取名为DirMovement，设置返回值为布尔型
+    Params
+            Numeric Length(14);
+            NumericRef oDMIPlus;
+            NumericRef oDMIMinus;
+            NumericRef oDMI;
+            NumericRef oADX;
+            NumericRef oADXR;
+            NumericRef oVolty;
+    Vars
+            NumericSeries sDMI;
+            NumericSeries sADX;
+            NumericSeries sVolty;
+            Numeric PlusDM;
+            Numeric MinusDM;
+            Numeric UpperMove;
+            Numeric LowerMove;
+            Numeric SumPlusDM(0);
+            Numeric SumMinusDM(0);
+            Numeric SumTR(0);
+            NumericSeries AvgPlusDM;
+            NumericSeries AvgMinusDM;
+            Numeric SF;                        // smoothing factor
+            Numeric Divisor;
+            Numeric i;
+            NumericSeries TRValue;
+    Begin
+            SF = 1/length;
+            TRValue = TrueRange;
+            If(CurrentBar == Length)
+            {
+                    for i = 0 To Length - 1
+                    {
+                            PlusDM = 0 ;
+                            MinusDM = 0 ;
+                            UpperMove = High[i] - High[ i + 1 ] ;
+                            LowerMove = Low[ i + 1 ] - Low[i] ;
+                            if (UpperMove > LowerMove and UpperMove > 0 )
+                            {
+                                    PlusDM = UpperMove;
+                            }else if (LowerMove > UpperMove and LowerMove > 0)
+                            {
+                                    MinusDM = LowerMove ;
+                            }
+                            SumPlusDM = SumPlusDM + PlusDM ;
+                            SumMinusDM = SumMinusDM + MinusDM ;
+                            SumTR = SumTR + TRValue[i] ;
+                    }
+                    AvgPlusDM = SumPlusDM / Length ;
+                    AvgMinusDM = SumMinusDM / Length ;
+                    sVolty = SumTR / Length ;
+            }Else if(CurrentBar > Length)
+            {
+                    PlusDM = 0 ;
+                    MinusDM = 0 ;
+                    UpperMove = High - High[1] ;
+                    LowerMove = Low[1] - Low ;
+                    if (UpperMove > LowerMove and UpperMove > 0 )
+                    {
+                            PlusDM = UpperMove;
+                    }else if (LowerMove > UpperMove and LowerMove > 0 )
+                    {
+                            MinusDM = LowerMove ;
+                    }
+                    AvgPlusDM = AvgPlusDM[1] + SF * ( PlusDM - AvgPlusDM[1] ) ;
+                    AvgMinusDM = AvgMinusDM[1] + SF * ( MinusDM - AvgMinusDM[1] ) ;
+                    sVolty = sVolty[1] + SF * ( TRValue  - sVolty[1] ) ;
+            }Else
+            {
+                    oDMIPlus = InvalidNumeric;
+                    oDMIMinus = InvalidNumeric;
+                    oDMI = InvalidNumeric;
+                    oADX = InvalidNumeric;
+                    oADXR = InvalidNumeric;
+                    oVolty = InvalidNumeric;
+                    Return True;
+            }
+           
+            if (sVolty > 0)
+            {
+                    oDMIPlus = 100 * AvgPlusDM / sVolty ;
+                    oDMIMinus = 100 * AvgMinusDM / sVolty ;
+            }else
+            {
+                    oDMIPlus = 0 ;
+                    oDMIMinus = 0 ;
+            }
+
+            Divisor = oDMIPlus + oDMIMinus ;
+            if (Divisor > 0)
+            {
+                    sDMI = 100 * Abs( oDMIPlus - oDMIMinus ) / Divisor;
+            }else
+            {
+                    sDMI = 0 ;
+            }
+
+            if(CurrentBar > 0)
+            {
+                    if (CurrentBar <= Length)
+                    {
+                            sADX = Cum( sDMI ) / CurrentBar ;
+                            oADXR = ( sADX + sADX[ CurrentBar - 1 ] ) * 0.5 ;
+                    }else  
+                    {
+                            sADX = sADX[1] + SF * ( sDMI - sADX[1] ) ;
+                            oADXR = ( sADX + sADX[ Length - 1 ] ) * 0.5 ;
+                    }
+            }
+            oVolty = sVolty;
+            oDMI = sDMI;
+            oADX = sADX;
+            Return True;
+    End
+
+复制代码
+2、新建技术指标，取名DMI，代码如下：
+
+    Params
+            Numeric Length(14);
+    Vars
+            Numeric oDMIPlus( 0 );
+            Numeric oDMIMinus( 0 );
+            Numeric oDMI( 0 );
+            Numeric oADX( 0 );
+            Numeric oADXR( 0 );
+            Numeric oVolty( 0 );
+    Begin
+            DirMovement(Length, oDMIPlus, oDMIMinus, oDMI, oADX, oADXR, oVolty ) ;
+            PlotNumeric( "DMI+" ,oDMIPlus);
+            PlotNumeric( "DMI-" ,oDMIMinus);
+            PlotNumeric( "ADX" ,oADX);
+    End

@@ -1,0 +1,289 @@
+//------------------------------------------------------------------------
+// 简称: MtSAR
+// 名称: 
+// 类别: 用户函数
+// 类型: 用户函数
+// 输出: 布尔型
+//------------------------------------------------------------------------
+
+Params
+        Numeric TimeFrame(1440);    // 目标时间周期：月线=40320，周线=10080，日线=1440，4小时线=240
+                                // 其他1小时内的周期等于相应的分钟数，如：1小时=60， 30分钟=30。
+                                // 支持不规则分钟数，如3分钟，8分钟等。注：目标周期即是长时间框架的周期
+ 
+    Numeric BarsBack(1);    // 目标时间周期BAR偏移：
+                            // 1--表示将目标时间周期下的前1根K线数据作为与当前Bar对应的目标时间周期下的K线数据
+                            // 0--表示将目标时间周期下的截止到目前为止的数据转换为与当前BAR对应的目标时间周期下K线数据
+        Numeric AfStep(0.02);
+        Numeric AfLimit(0.2);
+        NumericRef oParOpen;
+        NumericRef oPosition;
+Vars
+        Numeric oCurBar;         // 目标时间周期下的Bar索引
+        Numeric oOPenHT;         // 目标时间周期下的开盘价
+        Numeric oHighHT;         // 目标时间周期下的最高价
+        Numeric oLowHT;          // 目标时间周期下的最低价
+        Numeric oCloseHT;        // 目标时间周期下的收盘价
+        Numeric oVolHT;          // 目标时间周期下的成交量
+        Numeric oOpenIntHT;      // 目标时间周期下的持仓量
+                Numeric oTransition;
+                Numeric oParClose;
+                NumericSeries barCnt;
+        NumericSeries CurBar;
+        NumericSeries barCntSum;
+        NumericSeries OpenHT;
+        NumericSeries HighHT;
+        NumericSeries LowHT;
+        NumericSeries CloseHT;
+        NumericSeries VolHT;
+        NumericSeries OpenIntHT;
+        Numeric CurTime;
+        Numeric PreTime;
+        bool condition(false);
+        Numeric i;
+                
+        
+        NumericSeries Af(0);        
+        NumericSeries ParOpen(0);
+        NumericSeries Position(0);        
+        NumericSeries HHValue(0);
+        NumericSeries LLValue(0);
+Begin
+    
+//跨周期函数 -------------------------------------------------------------------------------
+ If (TimeFrame == 40320)                 // 月线
+        {
+                CurTime = Month;
+                PreTime = Month[1];
+        }
+        Else If (TimeFrame == 10080)            // 周线
+        {
+                CurTime = IntPart(DateDiff(19700105,Date)/7);
+                PreTime = IntPart(DateDiff(19700105,Date[1])/7);
+        }
+        Else                                                                        // 其他时间周期
+        {
+                CurTime = IntPart((DateDiff(19700105,date)*1440 + Hour*60 + Minute)/TimeFrame);
+                PreTime = IntPart((DateDiff(19700105,date[1])*1440 + Hour[1]*60 + Minute[1])/TimeFrame);
+        } 
+        condition = CurTime!=PreTime; 
+
+        If (CurrentBar==0)                // 如果是第一根Bar, CurBar=0
+        {
+                barCnt = 0;
+                CurBar = 0;
+                OpenHT = Open;
+                HighHT = High;
+                LowHT = Low;
+                CloseHT = Close;
+                VolHT = Vol;
+                OpenIntHT = OpenInt;
+        }
+        Else
+        {
+                If(Condition)                
+                // 如果在目标周期下，属于另一根K线，则CurBar加1
+                {
+                        barCnt = 1;
+                        CurBar = CurBar[1] + 1;
+                        OpenHT = Open;
+                        HighHT = High;
+                        LowHT = Low;
+                        VolHT = Vol;
+                }Else
+                // 如果在目标周期下，属于同一根K线，则CurBar不变，但最高价和最低价要记录价格的变化，成交量要累加
+                {
+                        barCnt = barCnt[1] + 1;
+                        CurBar = CurBar[1];
+                        OpenHT = OpenHT[1];
+                        HighHT = Max(HighHT[1],High);
+                        LowHT = Min(LowHT[1],Low);
+                        VolHT = VolHT[1] + Vol;
+                }
+ 
+                // 收盘价和持仓量总是取最新值
+                CloseHT = Close;
+                OpenIntHT = OpenInt;
+        }
+ 
+        // 上面的程序，在每根小周期的K线上，记录了它所属的大时间周期下的开高低收等值的变化。
+        // 接下来，要把在大的时间周期级别上，属于同一根K线的开高低收这些数据，记录在这一组小周期K线的最后一根上。
+        barCntSum = barCnt ;
+ 
+        If(BarsBack == 0)          // 如果Bar偏移参数为0，则取每根小周期K线上保留的大时间周期截止到这根小周期K线为止的BAR数据
+        {
+            barCntSum = 0 ;
+        }Else If(BarsBack == 1)    // 如果Bar偏移参数为1，则取大时间周期的上一根K线的BAr数据
+        {
+                        barCntSum = barCnt ;
+        }Else                      // 如果BAR偏移参数为其他，则取大时间周期的指定偏移后的那根K线的BAR数据
+        {
+                For i = 2 To BarsBack
+                {
+                        barCntSum = barCntSum + barCnt[barCntSum];
+                }
+        }
+ 
+        // 最后将相应的K线数据作为引用参数返回
+        oCurBar = CurBar;
+        oOpenHT = OpenHT[barCntSum];
+        oHighHT = HighHT[barCntSum];
+        oLowHT = LowHT[barCntSum];
+        oCloseHT = CloseHT[barCntSum];
+        oVolHT = VolHT[barCntSum];
+        oOpenIntHT = OpenIntHT[barCntSum];
+//-------------------------------------------------------------------------------------------
+
+//SAR值算法------------------------------------------------------------------------------------------
+
+        If (curBar == 1 and Condition)
+        {
+                Position = 1 ;
+                oTransition = 1 ;
+                Af = AfStep ;
+                HHValue = HighHT[barCntSum] ;
+                LLValue = LowHT[barCntSum] ;
+                oParClose = LLValue ;
+                ParOpen = oParClose + Af * ( HHValue - oParClose) ;
+                If (ParOpen > LowHT[barCntSum])
+                {
+                        ParOpen = LowHT[barCntSum] ;
+                }
+        }Else If(CurBar>1 and condition)
+        {        
+                oTransition = 0 ;        
+                If (HighHT[barCntSum] > HHValue[barCntSum+BarCnt])
+                {
+                        HHValue = HighHT[barCntSum];
+                }Else
+                {
+                        HHValue = HHValue[barCntSum+BarCnt];
+                }
+                
+                If (LowHT[barCntSum] < LLValue[barCntSum+BarCnt])
+                {
+                        LLValue = LowHT[barCntSum];
+                }Else
+                {
+                        LLValue = LLValue[barCntSum+BarCnt];
+                }
+                
+                If ( Position[barCntSum+BarCnt] == 1) 
+                {
+                        If ( LowHT[barCntSum] <= ParOpen[barCntSum+BarCnt])
+                        {
+                                Position = -1 ;
+                                oTransition = -1 ;                                
+                                oParClose = HHValue ;
+                                HHValue = HighHT[barCntSum] ;
+                                LLValue  = LowHT[barCntSum] ;
+        
+                                Af = AfStep ;
+                                ParOpen = oParClose + Af * ( LLValue - oParClose ) ;
+                                        
+                                If (ParOpen < HighHT[barCntSum])
+                                {
+                                        ParOpen = HighHT[barCntSum] ;
+                                }
+                                
+                                If (ParOpen < HighHT[barCntSum+BarCnt])
+                                {
+                                        ParOpen = HighHT[barCntSum+BarCnt] ;
+                                }
+                        }Else
+                        {
+                                Position = Position[barCntSum+BarCnt];
+                                oParClose = ParOpen[barCntSum+BarCnt] ;                                        
+                                If (HHValue > HHValue[barCntSum+BarCnt] and Af[barCntSum+BarCnt] < AfLimit )
+                                {
+                                        If(Af[barCntSum+BarCnt]+AfStep > AfLimit)
+                                        {
+                                                Af = AfLimit ;
+                                        }Else
+                                        {
+                                                Af = Af[barCntSum+BarCnt]+AfStep;
+                                        }                                
+                                        
+                                }Else
+                                {
+                                        Af = Af[barCntSum+BarCnt];
+                                }        
+                                ParOpen = oParClose + Af * ( HHValue - oParClose ) ;                                
+        
+                                If (ParOpen > LowHT[barCntSum])
+                                {
+                                        ParOpen = LowHT[barCntSum] ;
+                                }
+                                
+                                If (ParOpen > LowHT[barCntSum+BarCnt])
+                                {
+                                        ParOpen = LowHT[barCntSum+BarCnt];
+                                }
+                        }
+                }Else 
+                {
+                        If (HighHT[barCntSum] >= ParOpen[barCntSum+BarCnt])
+                        {
+                                Position = 1 ;
+                                oTransition = 1 ;
+                                
+                                oParClose = LLValue ;
+                                HHValue = HighHT[barCntSum] ;
+                                LLValue  = LowHT[barCntSum] ;
+                                
+                                Af = AfStep ;
+                                ParOpen = oParClose + Af * ( HHValue - oParClose) ;
+                                If (ParOpen > LowHT[barCntSum])
+                                {
+                                        ParOpen = LowHT[barCntSum] ;
+                                }
+                                
+                                If (ParOpen > LowHT[barCntSum+BarCnt])
+                                {
+                                        ParOpen = LowHT[barCntSum+BarCnt];
+                                }
+                        }Else
+                        {
+                                Position = Position[barCntSum+BarCnt];
+                                oParClose = ParOpen[barCntSum+BarCnt];
+                                        
+                                If (LLValue < LLValue[barCntSum+BarCnt] And Af[barCntSum+BarCnt] < AfLimit )
+                                {
+                                        If(Af[barCntSum+BarCnt]+AfStep > AfLimit)
+                                        {
+                                                Af = AfLimit ;
+                                        }Else
+                                        {
+                                                Af = Af[barCntSum+BarCnt]+AfStep;
+                                        }
+                                }Else
+                                {
+                                        Af = Af[barCntSum+BarCnt];
+                                }
+                                ParOpen = oParClose + Af * ( LLValue - oParClose ) ;
+        
+                                If (ParOpen < HighHT[barCntSum])
+                                {
+                                        ParOpen = HighHT[barCntSum] ;
+                                }
+                                
+                                If (ParOpen < HighHT[barCntSum+BarCnt])
+                                {
+                                        ParOpen = HighHT[barCntSum+BarCnt] ;
+                                }
+                        }
+                }        
+        }        
+        
+        oParOpen = ParOpen;
+        oPosition = Position;
+        Return True;
+end
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 18:01:05
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------

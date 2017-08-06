@@ -1,0 +1,44 @@
+//------------------------------------------------------------------------
+// 简称: TestMtRsi
+// 名称: 
+// 类别: 公式应用
+// 类型: 用户应用
+// 输出:
+//------------------------------------------------------------------------
+
+Params
+        Numeric TimeFrame(1440);        // 日线
+        Numeric BarsBack(1);                // 求前一日的值
+        Numeric Length(14) ;
+        Numeric OverSold(30) ;
+        Numeric OverBought(70) ;
+        Numeric Lots(1);
+Vars
+        NumericSeries RSIValue;
+        Numeric oRSIValue;
+        Numeric PreBar;
+Begin
+        PreBar = MtRSI(TimeFrame,BarsBack,Length,oRSIValue);
+        RSIValue = oRSIValue;
+
+        PlotNumeric("RSI",RSIValue);
+        PlotNumeric("超买",OverBought);
+        PlotNumeric("超卖",OverSold);
+
+        If (RSIValue>50)
+        {
+                Buy(Lots,Open);
+        }
+        If (RSIValue<50)
+        {
+                SellShort(Lots,Open);
+        }
+End
+
+//------------------------------------------------------------------------
+// 编译版本	GS2015.12.25
+// 用户版本	2016/06/28 17:05:12
+// 版权所有	readyaiming
+// 更改声明	TradeBlazer Software保留对TradeBlazer平台
+//			每一版本的TradeBlazer公式修改和重写的权利
+//------------------------------------------------------------------------
