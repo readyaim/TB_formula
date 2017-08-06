@@ -3,7 +3,7 @@
 // 名称: Multi-Period Turtle trading system
 // 类别: 公式应用
 // 类型: 用户应用
-// 输出: V31
+// 输出: V32_tmp
 //------------------------------------------------------------------------
 //Change List:
 //V31: fix sell(0, price)函数图表持仓和实际持仓不一致问题: 统一用InitEquity来计算N和开仓手数
@@ -128,7 +128,7 @@ Begin
 		CachedN20=0;
 	}	
 	// 集合竞价和小节休息过滤
-	If(!CallAuctionFilter()) Return;
+	If (!CallAuctionFilter()) Return;
 	
 	MinPoint = MinMove*PriceScale;	  //MinMove=最小变动价位(一跳的点数)/PriceScale
 	
@@ -237,25 +237,25 @@ Begin
 	Commentary("TurtleMax="+Text(TurtleMax));
 	
 	//产生第一级信号
-	If(MarketPosition == 0 && ((!LastProfitableTradeFilter) Or (PreBreakoutFailure)))
+	If(MarketPosition == 0  && ((!LastProfitableTradeFilter) Or (PreBreakoutFailure)))
 	{
-		If(High > DonchianHi && TurtleUnits >= 1 && (EntrySig1==0 || EntrySig1==2))
+		If(((EntryDirection==0) || (EntryDirection==1)) && (High > DonchianHi && TurtleUnits >= 1 && (EntrySig1==0 || EntrySig1==2)))
 		{	//开多突破标记
 			EntrySig1=1;
 			BreakoutThisBar=True;
 			CachedH20=DonchianHi;
 			CachedN20=N;
-			SetGlobalVar2("CachedHi", DonchianHi);		//Not used
-			SetGlobalVar2("CachedN", N);				//Not used
+			//SetGlobalVar2("CachedHi", DonchianHi);		//Not used
+			//SetGlobalVar2("CachedN", N);				//Not used
 		}
-		If(Low < DonchianLo && TurtleUnits >= 1&& (EntrySig1==0 || EntrySig1==1))
+		If(((EntryDirection==0) || (EntryDirection==-1)) &&(Low < DonchianLo && TurtleUnits >= 1&& (EntrySig1==0 || EntrySig1==1)))
 		{	//开空突破标记
 			EntrySig1=2;	
 			BreakoutThisBar=True;
 			CachedL20=DonchianLo;
 			CachedN20=N;
-			SetGlobalVar2("CachedLo", DonchianLo);		//Not used
-			SetGlobalVar2("CachedN", N);				//Not used
+			//SetGlobalVar2("CachedLo", DonchianLo);		//Not used
+			//SetGlobalVar2("CachedN", N);				//Not used
 		}
 	}
 	
@@ -746,12 +746,18 @@ Begin
 	
 	
 	//PlotBool("EntryAllowed", EntryAllowed);
+	/*
 	Commentary("RiskDegree="+Text(RiskDegree)); 
 	Commentary("TotalEquity="+Text(TotalEquity));
 	Commentary("A_TotalMargin="+Text(A_TotalMargin()));
 	Commentary("A_TotalFreeze="+Text(A_TotalFreeze()));
 	Commentary("A_CurrentEquity="+Text(A_CurrentEquity()));
+	*/
+	Commentary("EntrySig1="+Text(EntrySig1));
+	Commentary("EntrySig2="+Text(EntrySig2));
+	Commentary("MarketPosition="+Text(MarketPosition));
 	
+
 	//Commentary("Date="+Text(Date));
 	//Commentary("Time="+Text(Time));
 	//Commentary("Minute="+Text(Minute));
