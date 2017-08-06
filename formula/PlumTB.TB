@@ -230,12 +230,13 @@ Begin
 	
 	Commentary("N="+Text(N));
 	Commentary("preEntryPrice="+Text(preEntryPrice));
-	//Commentary("PreBreakoutFailure="+IIFString(PreBreakoutFailure,"True","False"));
+	
 		
 	If (TurtleStopFollow==0)	TurtleMax=MaxTurtlePos;
 	Else		TurtleMax=max(TurtleStopFollow+1, MaxTurtlePos);		
 	Commentary("TurtleMax="+Text(TurtleMax));
 	
+		
 	//产生第一级信号
 	If(MarketPosition == 0  && ((!LastProfitableTradeFilter) Or (PreBreakoutFailure)))
 	{
@@ -483,7 +484,7 @@ Begin
 			TurtleStopPrice=myEntryPrice+StopLossPara * N;
 			EntrySig1=0;
 			EntrySig2=0;
-		}else if (boLength!=telength && !ExitAllowed && Low<DonchianLo && SendOrderThisBar==false)
+		} Else If (boLength!=telength && !ExitAllowed && Low<DonchianLo && SendOrderThisBar==false)
 		{	//1min,5min,15min
 			//entry周期与exit周期不相等, 且价格突破L20时，平仓
 			myEntryPrice = max(low,DonchianLo - 2 * MinPoint);
@@ -517,7 +518,7 @@ Begin
 				TurtlePos=TurtlePos+1;	//海龟单位增1
 				TurtleStopPrice=TurtleStopPrice-0.5 * N[BarsSinceEntry];
 			}
-			while(Low <= preEntryPrice - 0.5*N[BarsSinceEntry] && TurtlePos<TurtleMax) // 以最低价为标准，判断能进行几次增仓
+			while (Low <= preEntryPrice - 0.5*N[BarsSinceEntry] && TurtlePos<TurtleMax) // 以最低价为标准，判断能进行几次增仓
 			{
 				myEntryPrice = preEntryPrice - 0.5 * N[BarsSinceEntry];
 				preEntryPrice = myEntryPrice;
@@ -753,11 +754,12 @@ Begin
 	Commentary("A_TotalFreeze="+Text(A_TotalFreeze()));
 	Commentary("A_CurrentEquity="+Text(A_CurrentEquity()));
 	*/
+	/*
 	Commentary("EntrySig1="+Text(EntrySig1));
 	Commentary("EntrySig2="+Text(EntrySig2));
 	Commentary("MarketPosition="+Text(MarketPosition));
-	
-
+	*/
+	//Commentary("PreBreakoutFailure="+IIFString(PreBreakoutFailure,"True","False"));
 	//Commentary("Date="+Text(Date));
 	//Commentary("Time="+Text(Time));
 	//Commentary("Minute="+Text(Minute));
